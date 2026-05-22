@@ -1117,7 +1117,7 @@ elements.serverSelect.addEventListener("change", () => {
 	} else {
 		elements.joinBtn.href =
 			"roblox://experiences/start?placeId=12018816388&gameInstanceId=" +
-			elements.serverSelect.value;
+			encodeURIComponent(elements.serverSelect.value);
 	}
 });
 
