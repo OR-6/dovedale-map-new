@@ -134,8 +134,13 @@ async function positionsApi(context: Context) {
 		);
 	}
 
-	webSockets.forEach((webSocket) => {
-		webSocket.send(JSON.stringify(data));
+	const message = JSON.stringify(data);
+	webSockets = webSockets.filter((webSocket) => {
+		if (webSocket.readyState !== 1) {
+			return false;
+		}
+		webSocket.send(message);
+		return true;
 	});
 
 	return context.json({ success: true });
