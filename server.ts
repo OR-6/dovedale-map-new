@@ -112,7 +112,7 @@ async function positionsApi(context: Context) {
 	}));
 
 	if (serverTimeouts.has(data.jobId)) {
-		console.log("Clearing current timeout");
+		//console.log("Clearing current timeout");
 		clearTimeout(serverTimeouts.get(data.jobId)); // ensure we actually cancel the timeout before deleting it, otherwise it will still fire even if deleted from the map
 		serverTimeouts.delete(data.jobId);
 	}
@@ -120,7 +120,7 @@ async function positionsApi(context: Context) {
 	serverTimeouts.set(
 		data.jobId,
 		setTimeout(() => {
-			console.log("Clearing, timeout have passed");
+			//console.log("Clearing, timeout have passed");
 			playersCache.delete(data.jobId);
 			serverTimeouts.delete(data.jobId);
 		}, STALE_SERVER_TIMEOUT),
