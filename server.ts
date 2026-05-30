@@ -113,6 +113,7 @@ async function positionsApi(context: Context) {
 
 	if (serverTimeouts.has(data.jobId)) {
 		console.log("Clearing current timeout");
+		clearTimeout(serverTimeouts.get(data.jobId)); // ensure we actually cancel the timeout before deleting it, otherwise it will still fire even if deleted from the map
 		serverTimeouts.delete(data.jobId);
 	}
 
