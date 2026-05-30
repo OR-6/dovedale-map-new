@@ -43,7 +43,11 @@ const GET_PLAYERS_API_KEY = process.env.GET_PLAYERS_API_KEY;
 if (!GET_PLAYERS_API_KEY)
 	throw new Error(`GET players API key environment variable is missing`);
 
-app.use("*", serveStatic({ root: "./public" }));
+const staticMiddleware = serveStatic({ root: "./public" });
+app.use("*", (c, next) => {
+	if (c.req.path.startsWith("/api/")) return next();
+	return staticMiddleware(c, next);
+});
 
 let webSockets: WSContext<any>[] = [];
 
@@ -78,7 +82,13 @@ app.get("/api/servers/:jobId/players", async (context) => {
 });
 
 async function positionsApi(context: Context) {
-	const result = requestSchema.safeParse(await context.req.json());
+	let body: unknown;
+	try {
+		body = await context.req.json();
+	} catch {
+		return new Response(null, { status: 499 });
+	}
+	const result = requestSchema.safeParse(body);
 
 	if (!result.success) {
 		return context.json(
@@ -154,4 +164,5 @@ export default {
 	fetch: app.fetch,
 	port: PORT,
 	websocket,
+	idleTimeout: 60,
 };
