@@ -66,6 +66,9 @@ app.use("*", (c, next) => {
 });
 
 let webSockets: WSContext<any>[] = [];
+setInterval(() => {
+	webSockets = webSockets.filter((ws) => ws.readyState === 1);
+}, 60_000);
 
 app.get("/api/status", (context) => {
 	return context.text("200 OK");
