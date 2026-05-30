@@ -44,9 +44,21 @@ if (!GET_PLAYERS_API_KEY)
 	throw new Error(`GET players API key environment variable is missing`);
 
 const staticMiddleware = serveStatic({ root: "./public" });
-app.use("*", (c, next) => {
+app.use("*", async (c, next) => {
 	if (c.req.path.startsWith("/api/")) return next();
-	return staticMiddleware(c, next);
+	await staticMiddleware(c, next);
+	const res = c.res;
+	if (!res || res.status === 404) return;
+	const path = c.req.path;
+	if (
+		path.endsWith(".png") ||
+		path.endsWith(".webp") ||
+		path.endsWith(".svg") ||
+		path.endsWith(".ico")
+	) {
+		c.res = new Response(res.body, res);
+		c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+	}
 });
 
 let webSockets: WSContext<any>[] = [];
