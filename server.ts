@@ -165,17 +165,23 @@ async function positionsApi(context: Context) {
 	}
 
 	const message = JSON.stringify(data);
-	const response = context.json({ success: true });
 
-	webSockets = webSockets.filter((webSocket) => {
-		if (webSocket.readyState !== 1) {
-			return false;
-		}
-		webSocket.send(message);
-		return true;
+	Promise.resolve().then(() => {
+		webSockets = webSockets.filter((webSocket) => {
+			if (webSocket.readyState !== 1) {
+				return false;
+			}
+			try {
+				webSocket.send(message);
+			} catch (err) {
+				console.error("WebSocket send error:", err);
+				return false;
+			}
+			return true;
+		});
 	});
 
-	return response;
+	return context.json({ success: true });
 }
 
 app.post("/api/positions", positionsApi);
