@@ -165,6 +165,8 @@ async function positionsApi(context: Context) {
 	}
 
 	const message = JSON.stringify(data);
+	const response = context.json({ success: true });
+
 	webSockets = webSockets.filter((webSocket) => {
 		if (webSocket.readyState !== 1) {
 			return false;
@@ -173,7 +175,7 @@ async function positionsApi(context: Context) {
 		return true;
 	});
 
-	return context.json({ success: true });
+	return response;
 }
 
 app.post("/api/positions", positionsApi);
