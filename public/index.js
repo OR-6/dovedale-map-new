@@ -112,6 +112,20 @@ const elements = {
     joinBtn: document.getElementById("joinBtn"),
 };
 
+const tooltipElements = {
+    playerName: elements.tooltip.querySelector("#player div"),
+    playerSection: elements.tooltip.querySelector("#player"),
+    destination: elements.tooltip.querySelector("#destination"),
+    destinationDiv: elements.tooltip.querySelector("#destination div"),
+    trainName: elements.tooltip.querySelector("#train-name"),
+    headcode: elements.tooltip.querySelector("#headcode"),
+    headcodeDiv: elements.tooltip.querySelector("#headcode div"),
+    trainClass: elements.tooltip.querySelector("#train-class"),
+    trainClassDiv: elements.tooltip.querySelector("#train-class div"),
+    server: elements.tooltip.querySelector("#server"),
+    serverDiv: elements.tooltip.querySelector("#server div"),
+};
+
 // Application State
 class AppState {
     constructor() {
@@ -266,8 +280,6 @@ const zoomAt = (screenX, screenY, scaleFactor) => {
     context.translate(point.x, point.y);
     context.scale(scaleFactor, scaleFactor);
     context.translate(-point.x, -point.y);
-
-    state.currentScale *= scaleFactor;
     drawScene();
 };
 
@@ -276,7 +288,7 @@ const getPlayerAtPosition = (canvasX, canvasY) => {
 
     for (const player of playersToCheck) {
         const displayPos = getDisplayPosition(
-            String(player.userId),
+            getPlayerId(player),
             player.position ?? { x: 0, y: 0 },
         );
         const baseCanvasPosition = worldToCanvas(displayPos.x, displayPos.y);
@@ -318,92 +330,63 @@ const updateTooltip = (player, isPinned = false) => {
     }
 
     const name = player.username ?? "Unknown";
-
-    const playerElement = elements.tooltip.querySelector("#player div");
-    if (playerElement) playerElement.textContent = name;
-
-    const destinationSection = elements.tooltip.querySelector("#destination");
-    const trainNameSection = elements.tooltip.querySelector("#train-name");
-    const headcodeSection = elements.tooltip.querySelector("#headcode");
-    const trainClassSection = elements.tooltip.querySelector("#train-class");
+    if (tooltipElements.playerName) tooltipElements.playerName.textContent = name;
 
     if (player.trainData && Object.keys(player.trainData).length > 0) {
-        const { destination, trainClass, headcode, trainType } =
-            player.trainData;
+        const { destination, trainClass, headcode } = player.trainData;
 
-        if (destination && destination !== "Unknown" && destinationSection) {
-            const destinationDiv = destinationSection.querySelector("div");
-            if (destinationDiv) destinationDiv.textContent = destination;
-            destinationSection.style.display = "flex";
-        } else if (destinationSection) {
-            destinationSection.style.display = "none";
+        if (destination && destination !== "Unknown") {
+            if (tooltipElements.destinationDiv) tooltipElements.destinationDiv.textContent = destination;
+            if (tooltipElements.destination) tooltipElements.destination.style.display = "flex";
+        } else if (tooltipElements.destination) {
+            tooltipElements.destination.style.display = "none";
         }
 
-        if (trainClass && trainClass !== "Unknown" && trainClassSection) {
-            const classDiv = trainClassSection.querySelector("div");
-            if (classDiv) classDiv.textContent = trainClass;
-            trainClassSection.style.display = "flex";
-        } else if (trainClassSection) {
-            trainClassSection.style.display = "none";
+        if (trainClass && trainClass !== "Unknown") {
+            if (tooltipElements.trainClassDiv) tooltipElements.trainClassDiv.textContent = trainClass;
+            if (tooltipElements.trainClass) tooltipElements.trainClass.style.display = "flex";
+        } else if (tooltipElements.trainClass) {
+            tooltipElements.trainClass.style.display = "none";
         }
 
-        if (
-            headcode &&
-            headcode !== "----" &&
-            headcode !== "" &&
-            headcodeSection
-        ) {
-            const headDiv = headcodeSection.querySelector("div");
-            if (headDiv) headDiv.textContent = headcode;
-            headcodeSection.style.display = "flex";
-        } else if (headcodeSection) {
-            headcodeSection.style.display = "none";
+        if (headcode && headcode !== "----" && headcode !== "") {
+            if (tooltipElements.headcodeDiv) tooltipElements.headcodeDiv.textContent = headcode;
+            if (tooltipElements.headcode) tooltipElements.headcode.style.display = "flex";
+        } else if (tooltipElements.headcode) {
+            tooltipElements.headcode.style.display = "none";
         }
 
-        if (trainNameSection) trainNameSection.style.display = "none";
+        if (tooltipElements.trainName) tooltipElements.trainName.style.display = "none";
     } else {
-        [
-            destinationSection,
-            trainNameSection,
-            headcodeSection,
-            trainClassSection,
-        ].forEach((section) => {
-            if (section) section.style.display = "none";
+        [tooltipElements.destination, tooltipElements.trainName, tooltipElements.headcode, tooltipElements.trainClass].forEach((el) => {
+            if (el) el.style.display = "none";
         });
     }
 
-    const playerSection = elements.tooltip.querySelector("#player");
-    if (playerSection) playerSection.style.display = "flex";
+    if (tooltipElements.playerSection) tooltipElements.playerSection.style.display = "flex";
 
-    const serverSection = elements.tooltip.querySelector("#server");
-    if (serverSection && state.currentServer === "all") {
-        const serverDiv = serverSection.querySelector("div");
-        if (serverDiv) {
+    if (tooltipElements.server && state.currentServer === "all") {
+        if (tooltipElements.serverDiv) {
             let serverName = "Unknown";
-            for (const [jobId, serverInfo] of Object.entries(
-                state.serverData,
-            )) {
+            for (const [jobId, serverInfo] of Object.entries(state.serverData)) {
                 if (serverInfo.players && serverInfo.players.includes(player)) {
-                    serverName =
-                        jobId.length > 6
-                            ? jobId.substring(jobId.length - 6)
-                            : jobId;
+                    serverName = jobId.length > 6 ? jobId.substring(jobId.length - 6) : jobId;
                     break;
                 }
             }
-            serverDiv.textContent = serverName;
+            tooltipElements.serverDiv.textContent = serverName;
         }
-        serverSection.style.display = "flex";
-    } else if (serverSection) {
-        serverSection.style.display = "none";
+        tooltipElements.server.style.display = "flex";
+    } else if (tooltipElements.server) {
+        tooltipElements.server.style.display = "none";
     }
 
     // Position tooltip at current display (interpolated) position
-    const displayPos = getDisplayPosition(
-        String(player.userId),
+    const tooltipDisplayPos = getDisplayPosition(
+        getPlayerId(player),
         player.position ?? { x: 0, y: 0 },
     );
-    const baseCanvasPosition = worldToCanvas(displayPos.x, displayPos.y);
+    const baseCanvasPosition = worldToCanvas(tooltipDisplayPos.x, tooltipDisplayPos.y);
     const transform = context.getTransform();
 
     const screenX =
@@ -538,7 +521,7 @@ const createWebSocket = () => {
             } else {
                 const now = Date.now();
                 playersArray.forEach((player) => {
-                    const uid = String(player.userId);
+                    const uid = getPlayerId(player);
                     const toX = player.position?.x ?? 0;
                     const toY = player.position?.y ?? 0;
 
@@ -699,18 +682,14 @@ const updateServerList = (data = null) => {
     if (data?.players) {
         const playersArray = Array.isArray(data.players) ? data.players : [];
         playersArray.forEach((player) => {
-            if (!player.trainData || !Array.isArray(player.trainData)) return;
-            const trainData = player.trainData;
-            if (typeof trainData !== "object" || trainData === null) {
-                player.trainData = null;
-                return;
-            }
-            player.trainData = [
-                trainData.destination || "Unknown",
-                trainData.class || "Unknown",
-                trainData.headcode || "----",
-                trainData.headcodeClass || "",
-            ];
+            const td = player.trainData;
+            if (!td || typeof td !== "object" || Array.isArray(td)) return;
+            player.trainData = {
+                destination: td.destination || "Unknown",
+                trainClass: td.class || "Unknown",
+                headcode: td.headcode || "----",
+                trainType: td.headcodeClass || "",
+            };
         });
     }
 
@@ -784,8 +763,10 @@ const updateServerList = (data = null) => {
     }
 };
 
-const TELEPORT_THRESHOLD = 1500; // Distance threshold for teleport detection
-const BUFFER_DELAY = 1100; // Render this far behind live data so we always have two points to interpolate between (In ms)
+const TELEPORT_THRESHOLD = 1500;
+const BUFFER_DELAY = 1100;
+
+const getPlayerId = (player) => String(player.userId ?? player.username ?? "unknown");
 
 const getDisplayPosition = (userId, fallback) => {
     const buffer = state.positionBuffer[userId];
@@ -924,19 +905,17 @@ const drawScene = () => {
     context.imageSmoothingEnabled = true;
 
     const playersToShow = state.getAllPlayers();
-    elements.players.innerHTML = `Players: ${playersToShow.length}`;
+    elements.players.textContent = `Players: ${playersToShow.length}`;
 
     const dotScaleFactor = Math.max(0.3, 1 / Math.pow(state.currentScale, 0.4));
 
     let activePlayerIds = [];
     playersToShow.forEach((player) => {
-        activePlayerIds.push(String(player.userId));
+        const uid = getPlayerId(player);
+        activePlayerIds.push(uid);
 
         const targetPosition = player.position ?? { x: 0, y: 0 };
-        const displayPos = getDisplayPosition(
-            String(player.userId),
-            targetPosition,
-        );
+        const displayPos = getDisplayPosition(uid, targetPosition);
         const worldX = displayPos.x;
         const worldY = displayPos.y;
         const name = player.username ?? "Unknown";
@@ -950,8 +929,7 @@ const drawScene = () => {
         if (player.trainData) {
             // derive angle from the buffer segment currently being rendered
             let markerAngle =
-                state.previousPlayerPosition[player.userId]?.angle ?? 0;
-            const uid = String(player.userId);
+                state.previousPlayerPosition[uid]?.angle ?? 0;
             const buf = state.positionBuffer[uid];
             if (buf && buf.length >= 2) {
                 const renderTime = Date.now() - BUFFER_DELAY;
@@ -962,10 +940,8 @@ const drawScene = () => {
                         // take care of "disco trains" require minimum distance to change angle
                         if (dx * dx + dy * dy > 1) {
                             markerAngle = Math.atan2(dy, dx);
-                            if (state.previousPlayerPosition[player.userId]) {
-                                state.previousPlayerPosition[
-                                    player.userId
-                                ].angle = markerAngle;
+                            if (state.previousPlayerPosition[uid]) {
+                                state.previousPlayerPosition[uid].angle = markerAngle;
                             }
                         }
                         break;
@@ -997,9 +973,7 @@ const drawScene = () => {
             context.rotate(-markerAngle);
             context.translate(-canvasPosition.x, -canvasPosition.y);
 
-            state.previousPlayerPosition[player.userId] = {
-                angle: markerAngle,
-            };
+            state.previousPlayerPosition[uid] = { angle: markerAngle };
         } else {
             context.fillStyle = getPlayerColor(name);
             context.beginPath();
@@ -1020,7 +994,7 @@ const drawScene = () => {
             context.stroke();
         }
 
-        const teleport = state.playerTeleport[player.userId];
+        const teleport = state.playerTeleport[uid];
         if (teleport) {
             const RIPPLE_DURATION = 700;
             const elapsed = Date.now() - teleport.at;
@@ -1040,17 +1014,18 @@ const drawScene = () => {
                 context.lineWidth = Math.max(0.8 * dotScaleFactor, 0.3);
                 context.stroke();
             } else {
-                delete state.playerTeleport[player.userId];
+                delete state.playerTeleport[uid];
             }
         }
     });
 
-    Object.keys(state.previousPlayerPosition).forEach((previousPlayerId) => {
-        if (!activePlayerIds.includes(previousPlayerId)) {
-            delete state.previousPlayerPosition[previousPlayerId];
-            delete state.positionBuffer[previousPlayerId];
-            delete state.playerLastUpdateTime[previousPlayerId];
-            delete state.playerTeleport[previousPlayerId];
+    const activeSet = new Set(activePlayerIds);
+    Object.keys(state.positionBuffer).forEach((id) => {
+        if (!activeSet.has(id)) {
+            delete state.previousPlayerPosition[id];
+            delete state.positionBuffer[id];
+            delete state.playerLastUpdateTime[id];
+            delete state.playerTeleport[id];
         }
     });
 
