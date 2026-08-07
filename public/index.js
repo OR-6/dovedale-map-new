@@ -1,1150 +1,1401 @@
 const WORLD_BOUNDS = {
-	TOP_LEFT: { x: -23818, y: -10426 },
-	BOTTOM_RIGHT: { x: 20504, y: 11377 },
+    TOP_LEFT: { x: -23818, y: -10426 },
+    BOTTOM_RIGHT: { x: 20504, y: 11377 },
 };
 
 const WORLD_WIDTH = WORLD_BOUNDS.BOTTOM_RIGHT.x - WORLD_BOUNDS.TOP_LEFT.x;
 const WORLD_HEIGHT = WORLD_BOUNDS.BOTTOM_RIGHT.y - WORLD_BOUNDS.TOP_LEFT.y;
 const WORLD_CENTER = {
-	x: (WORLD_BOUNDS.TOP_LEFT.x + WORLD_BOUNDS.BOTTOM_RIGHT.x) / 2,
-	y: (WORLD_BOUNDS.TOP_LEFT.y + WORLD_BOUNDS.BOTTOM_RIGHT.y) / 2,
+    x: (WORLD_BOUNDS.TOP_LEFT.x + WORLD_BOUNDS.BOTTOM_RIGHT.x) / 2,
+    y: (WORLD_BOUNDS.TOP_LEFT.y + WORLD_BOUNDS.BOTTOM_RIGHT.y) / 2,
 };
 
 const STALE_SERVER_TIMEOUT = 30_000;
 
 const MAP_CONFIG = {
-	rows: 1,
-	columns: 16,
-	totalWidth: 28680,
-	totalHeight: 13724,
+    rows: 1,
+    columns: 16,
+    totalWidth: 28680,
+    totalHeight: 13724,
 };
 
 const AREA_MARKERS = {
-	"Gleethrop End": {
-		x: 1274,
-		y: 3563,
-	},
-	Groenewoud: {
-		x: -14658,
-		y: -3762,
-	},
-	"Dovedale East": {
-		x: 1231,
-		y: 534,
-	},
-	"Fanory Mill": {
-		x: -16821,
-		y: -3954,
-	},
-	Mazewood: {
-		x: -4650,
-		y: 5798,
-	},
-	Conby: {
-		x: -11688,
-		y: -3270,
-	},
-	"Codsall Castle": {
-		x: 9991,
-		y: 5236,
-	},
-	Masonfield: {
-		x: 10667,
-		y: -881,
-	},
-	"Benyhone Loop": {
-		x: -19532,
-		y: -5201,
-	},
-	Perthtyne: {
-		x: -490,
-		y: 5268,
-	},
-	Ashburn: {
-		x: -22012,
-		y: -6729,
-	},
-	"Cosdale Harbour": {
-		x: 4325,
-		y: -2518,
-	},
-	"Glassbury Junction": {
-		x: 11592,
-		y: 8663,
-	},
-	"Dovedale Central": {
-		x: 3157,
-		y: 805,
-	},
-	"Wington Mount": {
-		x: 2922,
-		y: -2830,
-	},
-	"Marigot Crossing": {
-		x: 7692,
-		y: 2205,
-	},
-	Satus: {
-		x: -7485,
-		y: -3055,
-	},
+    "Gleethrop End": {
+        x: 1274,
+        y: 3563,
+    },
+    Groenewoud: {
+        x: -14658,
+        y: -3762,
+    },
+    "Dovedale East": {
+        x: 1231,
+        y: 534,
+    },
+    "Fanory Mill": {
+        x: -16821,
+        y: -3954,
+    },
+    Mazewood: {
+        x: -4650,
+        y: 5798,
+    },
+    Conby: {
+        x: -11688,
+        y: -3270,
+    },
+    "Codsall Castle": {
+        x: 9991,
+        y: 5236,
+    },
+    Masonfield: {
+        x: 10667,
+        y: -881,
+    },
+    "Benyhone Loop": {
+        x: -19532,
+        y: -5201,
+    },
+    Perthtyne: {
+        x: -490,
+        y: 5268,
+    },
+    Ashburn: {
+        x: -22012,
+        y: -6729,
+    },
+    "Cosdale Harbour": {
+        x: 4325,
+        y: -2518,
+    },
+    "Glassbury Junction": {
+        x: 11592,
+        y: 8663,
+    },
+    "Dovedale Central": {
+        x: 3157,
+        y: 805,
+    },
+    "Wington Mount": {
+        x: 2922,
+        y: -2830,
+    },
+    "Marigot Crossing": {
+        x: 7692,
+        y: 2205,
+    },
+    Satus: {
+        x: -7485,
+        y: -3055,
+    },
 };
 
 const COLORS = [
-	"#FD2943",
-	"#01A2FF",
-	"#02B857",
-	"#A75EB8",
-	"#F58225",
-	"#F5CD30",
-	"#E8BAC8",
-	"#D7C59A",
+    "#FD2943",
+    "#01A2FF",
+    "#02B857",
+    "#A75EB8",
+    "#F58225",
+    "#F5CD30",
+    "#E8BAC8",
+    "#D7C59A",
 ];
 
 const canvas = document.querySelector("canvas");
 const context = canvas.getContext("2d");
 const elements = {
-	players: document.getElementById("players"),
-	tooltip: document.getElementById("tooltip"),
-	serverSelect: document.getElementById("servers"),
-	connectionPopup: document.getElementById("connectionPopup"),
-	reconnectBtn: document.getElementById("reconnectBtn"),
-	joinBtn: document.getElementById("joinBtn"),
+    players: document.getElementById("players"),
+    tooltip: document.getElementById("tooltip"),
+    serverSelect: document.getElementById("servers"),
+    connectionPopup: document.getElementById("connectionPopup"),
+    reconnectBtn: document.getElementById("reconnectBtn"),
+    joinBtn: document.getElementById("joinBtn"),
 };
 
 // Application State
 class AppState {
-	constructor() {
-		this.serverData = {};
-		this.currentServer = "all";
-		this.hoveredPlayer = null;
-		this.pinnedPlayer = null;
-		this.isDragging = false;
-		this.dragStart = null;
-		this.dragStartTime = null;
-		this.currentScale = 1;
-		this.lastTouchDistance = 0;
-		this.ws = null;
-		this.reconnectAttempts = 0;
-		this.maxReconnectAttempts = 3;
-		this.reconnectTimeout = null;
-		this.mapImages = [];
-		this.loadedImages = 0;
-		this.totalImages = MAP_CONFIG.rows * MAP_CONFIG.columns;
-		this.staleCheckInterval = null;
-		this.previousPlayerPosition = {};
-	}
+    constructor() {
+        this.serverData = {};
+        this.currentServer = "all";
+        this.hoveredPlayer = null;
+        this.pinnedPlayer = null;
+        this.isDragging = false;
+        this.dragStart = null;
+        this.dragStartTime = null;
+        this.currentScale = 1;
+        this.lastTouchDistance = 0;
+        this.ws = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3;
+        this.reconnectTimeout = null;
+        this.mapImages = [];
+        this.loadedImages = 0;
+        this.totalImages = MAP_CONFIG.rows * MAP_CONFIG.columns;
+        this.staleCheckInterval = null;
+        this.previousPlayerPosition = {};
+        this.positionBuffer = {};
+        this.playerLastUpdateTime = {};
+        this.playerTeleport = {};
+        this.animationFrameId = null;
+        this.followMode = false;
+    }
 
-	getAllPlayers() {
-		if (this.currentServer === "all") {
-			return Object.values(this.serverData)
-				.map((serverInfo) => serverInfo.players || [])
-				.flat();
-		}
-		return this.serverData[this.currentServer]?.players || [];
-	}
+    getAllPlayers() {
+        if (this.currentServer === "all") {
+            return Object.values(this.serverData)
+                .map((serverInfo) => serverInfo.players || [])
+                .flat();
+        }
+        return this.serverData[this.currentServer]?.players || [];
+    }
 }
 
 const state = new AppState();
 
 // Utility Functions
 const getCanvasCoordinates = (event) => {
-	const rect = canvas.getBoundingClientRect();
-	return {
-		x: event.clientX - rect.left,
-		y: event.clientY - rect.top,
-	};
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+    };
 };
 
 const getDistanceBetweenTouches = (touches) => {
-	const distanceX = touches[0].clientX - touches[1].clientX;
-	const distanceY = touches[0].clientY - touches[1].clientY;
-	return Math.hypot(distanceX, distanceY);
+    const distanceX = touches[0].clientX - touches[1].clientX;
+    const distanceY = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(distanceX, distanceY);
 };
 
 const getPlayerColor = (name) => {
-	if (!name) return "#00FFFF";
+    if (!name) return "#00FFFF";
 
-	let value = 0;
-	for (let index = 0; index < name.length; index++) {
-		const charValue = name.charCodeAt(index);
-		let reverseIndex = name.length - index;
-		if (name.length % 2 === 1) reverseIndex--;
-		value += reverseIndex % 4 >= 2 ? -charValue : charValue;
-	}
+    let value = 0;
+    for (let index = 0; index < name.length; index++) {
+        const charValue = name.charCodeAt(index);
+        let reverseIndex = name.length - index;
+        if (name.length % 2 === 1) reverseIndex--;
+        value += reverseIndex % 4 >= 2 ? -charValue : charValue;
+    }
 
-	const colorIndex = ((value % COLORS.length) + COLORS.length) % COLORS.length;
-	return COLORS[colorIndex];
+    const colorIndex =
+        ((value % COLORS.length) + COLORS.length) % COLORS.length;
+    return COLORS[colorIndex];
 };
 
 const worldToCanvas = (worldX, worldY) => {
-	const relativeX = (worldX - WORLD_BOUNDS.TOP_LEFT.x) / WORLD_WIDTH;
-	const relativeY = (worldY - WORLD_BOUNDS.TOP_LEFT.y) / WORLD_HEIGHT;
+    const relativeX = (worldX - WORLD_BOUNDS.TOP_LEFT.x) / WORLD_WIDTH;
+    const relativeY = (worldY - WORLD_BOUNDS.TOP_LEFT.y) / WORLD_HEIGHT;
 
-	const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
-	const canvasAspectRatio = canvas.width / canvas.height;
+    const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
+    const canvasAspectRatio = canvas.width / canvas.height;
 
-	const scaleFactor =
-		mapAspectRatio > canvasAspectRatio
-			? canvas.width / MAP_CONFIG.totalWidth
-			: canvas.height / MAP_CONFIG.totalHeight;
+    const scaleFactor =
+        mapAspectRatio > canvasAspectRatio
+            ? canvas.width / MAP_CONFIG.totalWidth
+            : canvas.height / MAP_CONFIG.totalHeight;
 
-	const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
-	const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
-	const offsetX = (canvas.width - scaledMapWidth) / 2;
-	const offsetY = (canvas.height - scaledMapHeight) / 2;
+    const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
+    const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
+    const offsetX = (canvas.width - scaledMapWidth) / 2;
+    const offsetY = (canvas.height - scaledMapHeight) / 2;
 
-	return {
-		x: offsetX + relativeX * scaledMapWidth,
-		y: offsetY + relativeY * scaledMapHeight,
-	};
+    return {
+        x: offsetX + relativeX * scaledMapWidth,
+        y: offsetY + relativeY * scaledMapHeight,
+    };
 };
 
 function drawRoundedRectangle(context, x, y, width, height, radius) {
-	if (width < 2 * radius) radius = width / 2;
-	if (height < 2 * radius) radius = height / 2;
-	context.beginPath();
-	context.moveTo(x + radius, y);
-	context.arcTo(x + width, y, x + width, y + height, radius);
-	context.arcTo(x + width, y + height, x, y + height, radius);
-	context.arcTo(x, y + height, x, y, radius);
-	context.arcTo(x, y, x + width, y, radius);
-	context.closePath();
+    if (width < 2 * radius) radius = width / 2;
+    if (height < 2 * radius) radius = height / 2;
+    context.beginPath();
+    context.moveTo(x + radius, y);
+    context.arcTo(x + width, y, x + width, y + height, radius);
+    context.arcTo(x + width, y + height, x, y + height, radius);
+    context.arcTo(x, y + height, x, y, radius);
+    context.arcTo(x, y, x + width, y, radius);
+    context.closePath();
 }
 
 const trackTransforms = () => {
-	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-	let transform = svg.createSVGMatrix();
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    let transform = svg.createSVGMatrix();
 
-	context.getTransform = () => transform;
+    context.getTransform = () => transform;
 
-	const savedTransforms = [];
-	const original = {
-		save: context.save,
-		restore: context.restore,
-		scale: context.scale,
-		translate: context.translate,
-	};
+    const savedTransforms = [];
+    const original = {
+        save: context.save,
+        restore: context.restore,
+        scale: context.scale,
+        translate: context.translate,
+    };
 
-	context.save = function () {
-		savedTransforms.push(transform.translate(0, 0));
-		return original.save.call(context);
-	};
+    context.save = function () {
+        savedTransforms.push(transform.translate(0, 0));
+        return original.save.call(context);
+    };
 
-	context.restore = function () {
-		transform = savedTransforms.pop();
-		return original.restore.call(context);
-	};
+    context.restore = function () {
+        transform = savedTransforms.pop();
+        return original.restore.call(context);
+    };
 
-	context.scale = function (scaleX, scaleY) {
-		transform = transform.scaleNonUniform(scaleX, scaleY);
-		state.currentScale *= scaleX;
-		return original.scale.call(context, scaleX, scaleY);
-	};
+    context.scale = function (scaleX, scaleY) {
+        transform = transform.scaleNonUniform(scaleX, scaleY);
+        state.currentScale *= scaleX;
+        return original.scale.call(context, scaleX, scaleY);
+    };
 
-	context.translate = function (distanceX, distanceY) {
-		transform = transform.translate(distanceX, distanceY);
-		return original.translate.call(context, distanceX, distanceY);
-	};
+    context.translate = function (distanceX, distanceY) {
+        transform = transform.translate(distanceX, distanceY);
+        return original.translate.call(context, distanceX, distanceY);
+    };
 
-	const point = svg.createSVGPoint();
-	context.transformedPoint = function (x, y) {
-		point.x = x;
-		point.y = y;
-		return point.matrixTransform(transform.inverse());
-	};
+    const point = svg.createSVGPoint();
+    context.transformedPoint = function (x, y) {
+        point.x = x;
+        point.y = y;
+        return point.matrixTransform(transform.inverse());
+    };
 };
 
 const zoomAt = (screenX, screenY, scaleFactor) => {
-	const point = context.transformedPoint(screenX, screenY);
-	context.translate(point.x, point.y);
-	context.scale(scaleFactor, scaleFactor);
-	context.translate(-point.x, -point.y);
+    const point = context.transformedPoint(screenX, screenY);
+    context.translate(point.x, point.y);
+    context.scale(scaleFactor, scaleFactor);
+    context.translate(-point.x, -point.y);
 
-	state.currentScale *= scaleFactor;
-	drawScene();
+    state.currentScale *= scaleFactor;
+    drawScene();
 };
 
 const getPlayerAtPosition = (canvasX, canvasY) => {
-	const playersToCheck = state.getAllPlayers();
+    const playersToCheck = state.getAllPlayers();
 
-	for (const player of playersToCheck) {
-		const worldX = player.position?.x ?? 0;
-		const worldY = player.position?.y ?? 0;
+    for (const player of playersToCheck) {
+        const displayPos = getDisplayPosition(
+            String(player.userId),
+            player.position ?? { x: 0, y: 0 },
+        );
+        const baseCanvasPosition = worldToCanvas(displayPos.x, displayPos.y);
+        const transform = context.getTransform();
 
-		const baseCanvasPosition = worldToCanvas(worldX, worldY);
-		const transform = context.getTransform();
+        const screenX =
+            baseCanvasPosition.x * transform.a +
+            baseCanvasPosition.y * transform.c +
+            transform.e;
+        const screenY =
+            baseCanvasPosition.x * transform.b +
+            baseCanvasPosition.y * transform.d +
+            transform.f;
 
-		const screenX =
-			baseCanvasPosition.x * transform.a +
-			baseCanvasPosition.y * transform.c +
-			transform.e;
-		const screenY =
-			baseCanvasPosition.x * transform.b +
-			baseCanvasPosition.y * transform.d +
-			transform.f;
+        const scaleFactor = Math.max(
+            0.3,
+            1 / Math.pow(state.currentScale, 0.4),
+        );
+        // trains scale with zoom; dots are kept small via scaleFactor
+        const hitRadius = player.trainData
+            ? Math.max(
+                  5,
+                  (Math.hypot(12, 6) / 2) * 0.45 * Math.abs(transform.a),
+              )
+            : 3 * scaleFactor * Math.abs(transform.a);
 
-		const baseRadius = 3;
-		const scaleFactor = Math.max(0.3, 1 / Math.pow(state.currentScale, 0.4));
-		const hitRadius = baseRadius * scaleFactor * Math.abs(transform.a);
+        const distance = Math.hypot(screenX - canvasX, screenY - canvasY);
 
-		const distance = Math.hypot(screenX - canvasX, screenY - canvasY);
+        if (distance <= hitRadius) return player;
+    }
 
-		if (distance <= hitRadius) return player;
-	}
-
-	return null;
+    return null;
 };
 
 const updateTooltip = (player, isPinned = false) => {
-	if (!player) {
-		elements.tooltip.classList.add("hidden");
-		return;
-	}
+    if (!player) {
+        elements.tooltip.classList.add("hidden");
+        return;
+    }
 
-	const name = player.username ?? "Unknown";
+    const name = player.username ?? "Unknown";
 
-	const playerElement = elements.tooltip.querySelector("#player div");
-	if (playerElement) playerElement.textContent = name;
+    const playerElement = elements.tooltip.querySelector("#player div");
+    if (playerElement) playerElement.textContent = name;
 
-	const destinationSection = elements.tooltip.querySelector("#destination");
-	const trainNameSection = elements.tooltip.querySelector("#train-name");
-	const headcodeSection = elements.tooltip.querySelector("#headcode");
-	const trainClassSection = elements.tooltip.querySelector("#train-class");
+    const destinationSection = elements.tooltip.querySelector("#destination");
+    const trainNameSection = elements.tooltip.querySelector("#train-name");
+    const headcodeSection = elements.tooltip.querySelector("#headcode");
+    const trainClassSection = elements.tooltip.querySelector("#train-class");
 
-	if (player.trainData && Object.keys(player.trainData).length > 0) {
-		const { destination, trainClass, headcode, trainType } = player.trainData;
+    if (player.trainData && Object.keys(player.trainData).length > 0) {
+        const { destination, trainClass, headcode, trainType } =
+            player.trainData;
 
-		if (destination && destination !== "Unknown" && destinationSection) {
-			const destinationDiv = destinationSection.querySelector("div");
-			if (destinationDiv) destinationDiv.textContent = destination;
-			destinationSection.style.display = "flex";
-		} else if (destinationSection) {
-			destinationSection.style.display = "none";
-		}
+        if (destination && destination !== "Unknown" && destinationSection) {
+            const destinationDiv = destinationSection.querySelector("div");
+            if (destinationDiv) destinationDiv.textContent = destination;
+            destinationSection.style.display = "flex";
+        } else if (destinationSection) {
+            destinationSection.style.display = "none";
+        }
 
-		if (trainClass && trainClass !== "Unknown" && trainClassSection) {
-			const classDiv = trainClassSection.querySelector("div");
-			if (classDiv) classDiv.textContent = trainClass;
-			trainClassSection.style.display = "flex";
-		} else if (trainClassSection) {
-			trainClassSection.style.display = "none";
-		}
+        if (trainClass && trainClass !== "Unknown" && trainClassSection) {
+            const classDiv = trainClassSection.querySelector("div");
+            if (classDiv) classDiv.textContent = trainClass;
+            trainClassSection.style.display = "flex";
+        } else if (trainClassSection) {
+            trainClassSection.style.display = "none";
+        }
 
-		if (headcode && headcode !== "----" && headcode !== "" && headcodeSection) {
-			const headDiv = headcodeSection.querySelector("div");
-			if (headDiv) headDiv.textContent = headcode;
-			headcodeSection.style.display = "flex";
-		} else if (headcodeSection) {
-			headcodeSection.style.display = "none";
-		}
+        if (
+            headcode &&
+            headcode !== "----" &&
+            headcode !== "" &&
+            headcodeSection
+        ) {
+            const headDiv = headcodeSection.querySelector("div");
+            if (headDiv) headDiv.textContent = headcode;
+            headcodeSection.style.display = "flex";
+        } else if (headcodeSection) {
+            headcodeSection.style.display = "none";
+        }
 
-		if (trainNameSection) trainNameSection.style.display = "none";
-	} else {
-		[
-			destinationSection,
-			trainNameSection,
-			headcodeSection,
-			trainClassSection,
-		].forEach((section) => {
-			if (section) section.style.display = "none";
-		});
-	}
+        if (trainNameSection) trainNameSection.style.display = "none";
+    } else {
+        [
+            destinationSection,
+            trainNameSection,
+            headcodeSection,
+            trainClassSection,
+        ].forEach((section) => {
+            if (section) section.style.display = "none";
+        });
+    }
 
-	const playerSection = elements.tooltip.querySelector("#player");
-	if (playerSection) playerSection.style.display = "flex";
+    const playerSection = elements.tooltip.querySelector("#player");
+    if (playerSection) playerSection.style.display = "flex";
 
-	const serverSection = elements.tooltip.querySelector("#server");
-	if (serverSection && state.currentServer === "all") {
-		const serverDiv = serverSection.querySelector("div");
-		if (serverDiv) {
-			let serverName = "Unknown";
-			for (const [jobId, serverInfo] of Object.entries(state.serverData)) {
-				if (serverInfo.players && serverInfo.players.includes(player)) {
-					serverName =
-						jobId.length > 6 ? jobId.substring(jobId.length - 6) : jobId;
-					break;
-				}
-			}
-			serverDiv.textContent = serverName;
-		}
-		serverSection.style.display = "flex";
-	} else if (serverSection) {
-		serverSection.style.display = "none";
-	}
+    const serverSection = elements.tooltip.querySelector("#server");
+    if (serverSection && state.currentServer === "all") {
+        const serverDiv = serverSection.querySelector("div");
+        if (serverDiv) {
+            let serverName = "Unknown";
+            for (const [jobId, serverInfo] of Object.entries(
+                state.serverData,
+            )) {
+                if (serverInfo.players && serverInfo.players.includes(player)) {
+                    serverName =
+                        jobId.length > 6
+                            ? jobId.substring(jobId.length - 6)
+                            : jobId;
+                    break;
+                }
+            }
+            serverDiv.textContent = serverName;
+        }
+        serverSection.style.display = "flex";
+    } else if (serverSection) {
+        serverSection.style.display = "none";
+    }
 
-	// Position tooltip
-	const worldX = player.position?.x ?? 0;
-	const worldY = player.position?.y ?? 0;
-	const baseCanvasPosition = worldToCanvas(worldX, worldY);
-	const transform = context.getTransform();
+    // Position tooltip at current display (interpolated) position
+    const displayPos = getDisplayPosition(
+        String(player.userId),
+        player.position ?? { x: 0, y: 0 },
+    );
+    const baseCanvasPosition = worldToCanvas(displayPos.x, displayPos.y);
+    const transform = context.getTransform();
 
-	const screenX =
-		baseCanvasPosition.x * transform.a +
-		baseCanvasPosition.y * transform.c +
-		transform.e;
-	const screenY =
-		baseCanvasPosition.x * transform.b +
-		baseCanvasPosition.y * transform.d +
-		transform.f;
+    const screenX =
+        baseCanvasPosition.x * transform.a +
+        baseCanvasPosition.y * transform.c +
+        transform.e;
+    const screenY =
+        baseCanvasPosition.x * transform.b +
+        baseCanvasPosition.y * transform.d +
+        transform.f;
 
-	const canvasRect = canvas.getBoundingClientRect();
-	const tooltipX = canvasRect.left + screenX;
-	const tooltipY = canvasRect.top + screenY;
+    const canvasRect = canvas.getBoundingClientRect();
+    const tooltipX = canvasRect.left + screenX;
+    const tooltipY = canvasRect.top + screenY;
 
-	let finalX = tooltipX + 15;
-	let finalY = tooltipY - 40;
+    let finalX = tooltipX + 15;
+    let finalY = tooltipY - 40;
 
-	elements.tooltip.classList.remove("hidden");
-	elements.tooltip.style.visibility = "hidden";
+    elements.tooltip.classList.remove("hidden");
+    elements.tooltip.style.visibility = "hidden";
 
-	const tooltipRect = elements.tooltip.getBoundingClientRect();
+    const tooltipRect = elements.tooltip.getBoundingClientRect();
 
-	if (finalX + tooltipRect.width > window.innerWidth) {
-		finalX = tooltipX - tooltipRect.width - 15;
-	}
-	if (finalY < 0) {
-		finalY = tooltipY + 20;
-	}
-	if (finalY + tooltipRect.height > window.innerHeight) {
-		finalY = tooltipY - tooltipRect.height - 20;
-	}
-	if (finalX < 0) {
-		finalX = tooltipX + 15;
-	}
+    if (finalX + tooltipRect.width > window.innerWidth) {
+        finalX = tooltipX - tooltipRect.width - 15;
+    }
+    if (finalY < 0) {
+        finalY = tooltipY + 20;
+    }
+    if (finalY + tooltipRect.height > window.innerHeight) {
+        finalY = tooltipY - tooltipRect.height - 20;
+    }
+    if (finalX < 0) {
+        finalX = tooltipX + 15;
+    }
 
-	elements.tooltip.style.left = `${finalX}px`;
-	elements.tooltip.style.top = `${finalY}px`;
-	elements.tooltip.style.visibility = "visible";
+    elements.tooltip.style.left = `${finalX}px`;
+    elements.tooltip.style.top = `${finalY}px`;
+    elements.tooltip.style.visibility = "visible";
 
-	if (isPinned) {
-		elements.tooltip.style.boxShadow = "0 0 0 2px rgba(59, 130, 246, 0.5)";
-	} else {
-		elements.tooltip.style.boxShadow = "";
-	}
+    if (isPinned) {
+        elements.tooltip.style.boxShadow = "0 0 0 2px rgba(59, 130, 246, 0.5)";
+    } else {
+        elements.tooltip.style.boxShadow = "";
+    }
 };
 
 let resizeTimeout = null;
 const handleWindowResize = () => {
-	if (resizeTimeout) {
-		clearTimeout(resizeTimeout);
-	}
+    if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+    }
 
-	resizeTimeout = setTimeout(() => {
-		const currentTransform = context.getTransform();
-		canvas.width = window.innerWidth;
-		canvas.height = window.innerHeight;
-		context.setTransform(currentTransform);
-		drawScene();
-	}, 16);
+    resizeTimeout = setTimeout(() => {
+        const currentTransform = context.getTransform();
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        context.setTransform(currentTransform);
+        drawScene();
+    }, 16);
 
-	drawScene();
+    drawScene();
 };
 
 const cleanupStaleServers = () => {
-	const now = Date.now();
-	let hasStaleServers = false;
+    const now = Date.now();
+    let hasStaleServers = false;
 
-	for (const [jobId, serverInfo] of Object.entries(state.serverData)) {
-		if (now - serverInfo.lastUpdate > STALE_SERVER_TIMEOUT) {
-			console.log(`Removing stale server: ${jobId}`);
-			delete state.serverData[jobId];
-			hasStaleServers = true;
-		}
-	}
+    for (const [jobId, serverInfo] of Object.entries(state.serverData)) {
+        if (now - serverInfo.lastUpdate > STALE_SERVER_TIMEOUT) {
+            console.log(`Removing stale server: ${jobId}`);
+            delete state.serverData[jobId];
+            hasStaleServers = true;
+        }
+    }
 
-	if (hasStaleServers) {
-		updateServerList();
-		drawScene();
-	}
+    if (hasStaleServers) {
+        updateServerList();
+        drawScene();
+    }
 };
 
 const startStaleServerCleanup = () => {
-	if (state.staleCheckInterval) {
-		clearInterval(state.staleCheckInterval);
-	}
-	console.log("Starting stale server cleanup loop");
-	state.staleCheckInterval = setInterval(cleanupStaleServers, 5000); // every 5s
+    if (state.staleCheckInterval) {
+        clearInterval(state.staleCheckInterval);
+    }
+    console.log("Starting stale server cleanup loop");
+    state.staleCheckInterval = setInterval(cleanupStaleServers, 5000); // every 5s
 };
 
 const stopStaleServerCleanup = () => {
-	if (state.staleCheckInterval) {
-		console.log("Stopping stale server cleanup loop");
-		clearInterval(state.staleCheckInterval);
-		state.staleCheckInterval = null;
-	}
+    if (state.staleCheckInterval) {
+        console.log("Stopping stale server cleanup loop");
+        clearInterval(state.staleCheckInterval);
+        state.staleCheckInterval = null;
+    }
 };
 
 const createWebSocket = () => {
-	if (state.reconnectTimeout) {
-		clearTimeout(state.reconnectTimeout);
-		state.reconnectTimeout = null;
-	}
+    if (state.reconnectTimeout) {
+        clearTimeout(state.reconnectTimeout);
+        state.reconnectTimeout = null;
+    }
 
-	if (state.ws) {
-		state.ws.close();
-		state.ws = null;
-	}
+    if (state.ws) {
+        state.ws.close();
+        state.ws = null;
+    }
 
-	state.ws = new WebSocket(
-		(location.protocol == "http:" ? "ws://" : "wss://") +
-		`${window.location.host}/api/ws`,
-	);
+    state.ws = new WebSocket(
+      (location.protocol == "http:" ? "ws://" : "wss://") +
+        `${window.location.host}/api/ws`,
+    );
 
-	state.ws.addEventListener("open", () => {
-		console.log("WebSocket connected");
-		state.reconnectAttempts = 0;
-		hideConnectionPopup();
-		startStaleServerCleanup();
-	});
+    state.ws.addEventListener("open", () => {
+        console.log("WebSocket connected");
+        state.reconnectAttempts = 0;
+        hideConnectionPopup();
+        startStaleServerCleanup();
+    });
 
-	state.ws.addEventListener("message", (event) => {
-		try {
-			const data = JSON.parse(event.data);
-			const jobId = data.jobId;
-			const playersArray = Array.isArray(data.players) ? data.players : [];
+    state.ws.addEventListener("message", (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            const jobId = data.jobId;
+            const playersArray = Array.isArray(data.players)
+                ? data.players
+                : [];
 
-			if (playersArray.length === 0 && data.serverShutdown) {
-				delete state.serverData[jobId];
-			} else {
-				state.serverData[jobId] = {
-					players: playersArray,
-					lastUpdate: Date.now(),
-				};
-			}
-			updateServerList(data);
-			drawScene();
-		} catch (err) {
-			console.error("Error parsing data", err);
-		}
-	});
+            if (playersArray.length === 0 && data.serverShutdown) {
+                delete state.serverData[jobId];
+            } else {
+                const now = Date.now();
+                playersArray.forEach((player) => {
+                    const uid = String(player.userId);
+                    const toX = player.position?.x ?? 0;
+                    const toY = player.position?.y ?? 0;
 
-	state.ws.addEventListener("error", (err) => {
-		console.warn("WebSocket error:", err);
-	});
+                    const oldPlayer = state.serverData[jobId]?.players?.find(
+                        (p) => String(p.userId) === uid,
+                    );
+                    const oldX = oldPlayer?.position?.x ?? toX;
+                    const oldY = oldPlayer?.position?.y ?? toY;
 
-	state.ws.addEventListener("close", (event) => {
-		console.warn("WebSocket closed:", event.code, event.reason);
-		showConnectionPopup();
-		stopStaleServerCleanup();
+                    const ddx = toX - oldX;
+                    const ddy = toY - oldY;
+                    const isTeleport =
+                        ddx * ddx + ddy * ddy >
+                        TELEPORT_THRESHOLD * TELEPORT_THRESHOLD;
 
-		if (
-			state.reconnectAttempts < state.maxReconnectAttempts &&
-			!state.reconnectTimeout
-		) {
-			state.reconnectTimeout = setTimeout(() => {
-				state.reconnectTimeout = null;
-				attemptReconnect();
-			}, 1000);
-		}
-	});
+                    if (!state.positionBuffer[uid])
+                        state.positionBuffer[uid] = [];
 
-	return state.ws;
+                    if (isTeleport) {
+                        // Clear buffer on teleport so we don't interpolate across the jump
+                        state.positionBuffer[uid] = [
+                            { x: toX, y: toY, t: now - BUFFER_DELAY },
+                        ];
+                        state.playerTeleport[uid] = { at: now };
+                    } else {
+                        state.positionBuffer[uid].push({
+                            x: toX,
+                            y: toY,
+                            t: now,
+                        });
+                        // Keep only entries within the last 10 seconds
+                        const cutoff = now - 10000;
+                        state.positionBuffer[uid] = state.positionBuffer[
+                            uid
+                        ].filter((e) => e.t >= cutoff);
+                    }
+
+                    state.playerLastUpdateTime[uid] = now;
+                });
+
+                state.serverData[jobId] = {
+                    players: playersArray,
+                    lastUpdate: Date.now(),
+                };
+            }
+            updateServerList(data);
+            startAnimationLoop();
+        } catch (err) {
+            console.error("Error parsing data", err);
+        }
+    });
+
+    state.ws.addEventListener("error", (err) => {
+        console.warn("WebSocket error:", err);
+    });
+
+    state.ws.addEventListener("close", (event) => {
+        console.warn("WebSocket closed:", event.code, event.reason);
+        showConnectionPopup();
+        stopStaleServerCleanup();
+
+        if (
+            state.reconnectAttempts < state.maxReconnectAttempts &&
+            !state.reconnectTimeout
+        ) {
+            state.reconnectTimeout = setTimeout(() => {
+                state.reconnectTimeout = null;
+                attemptReconnect();
+            }, 1000);
+        }
+    });
+
+    return state.ws;
 };
 
 const showConnectionPopup = () => {
-	elements.connectionPopup.classList.remove(
-		"opacity-0",
-		"-translate-y-5",
-		"pointer-events-none",
-	);
-	elements.connectionPopup.classList.add("opacity-100", "translate-y-0");
-	updateReconnectButton();
+    elements.connectionPopup.classList.remove(
+        "opacity-0",
+        "-translate-y-5",
+        "pointer-events-none",
+    );
+    elements.connectionPopup.classList.add("opacity-100", "translate-y-0");
+    updateReconnectButton();
 };
 
 const hideConnectionPopup = () => {
-	elements.connectionPopup.classList.add(
-		"opacity-0",
-		"-translate-y-5",
-		"pointer-events-none",
-	);
-	elements.connectionPopup.classList.remove("opacity-100", "translate-y-0");
+    elements.connectionPopup.classList.add(
+        "opacity-0",
+        "-translate-y-5",
+        "pointer-events-none",
+    );
+    elements.connectionPopup.classList.remove("opacity-100", "translate-y-0");
 
-	elements.reconnectBtn.disabled = false;
-	elements.reconnectBtn.classList.remove("bg-zinc-600");
-	elements.reconnectBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
+    elements.reconnectBtn.disabled = false;
+    elements.reconnectBtn.classList.remove("bg-zinc-600");
+    elements.reconnectBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
 
-	const reconnectIcon = document.getElementById("reconnectIcon");
-	if (reconnectIcon) {
-		reconnectIcon.classList.remove("animate-spin");
-	}
+    const reconnectIcon = document.getElementById("reconnectIcon");
+    if (reconnectIcon) {
+        reconnectIcon.classList.remove("animate-spin");
+    }
 
-	elements.reconnectBtn.innerHTML = `
+    elements.reconnectBtn.innerHTML = `
     <i id="reconnectIcon" class="material-symbols-outlined text-4">refresh</i>
     Reconnect
   `;
 };
 
 const updateReconnectButton = () => {
-	if (state.reconnectAttempts >= state.maxReconnectAttempts) {
-		elements.reconnectBtn.innerHTML = `
+    if (state.reconnectAttempts >= state.maxReconnectAttempts) {
+        elements.reconnectBtn.innerHTML = `
       <i id="reconnectIcon" class="material-symbols-outlined text-4">refresh</i>
       Reconnect
     `;
-		elements.reconnectBtn.disabled = false;
-		elements.reconnectBtn.classList.remove("bg-zinc-600");
-		elements.reconnectBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
-	}
+        elements.reconnectBtn.disabled = false;
+        elements.reconnectBtn.classList.remove("bg-zinc-600");
+        elements.reconnectBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
+    }
 };
 
 const attemptReconnect = () => {
-	if (state.reconnectTimeout) {
-		return;
-	}
+    if (state.reconnectTimeout) {
+        return;
+    }
 
-	if (state.reconnectAttempts >= state.maxReconnectAttempts) {
-		updateReconnectButton();
-		return;
-	}
+    if (state.reconnectAttempts >= state.maxReconnectAttempts) {
+        updateReconnectButton();
+        return;
+    }
 
-	state.reconnectAttempts++;
+    state.reconnectAttempts++;
 
-	elements.reconnectBtn.disabled = true;
-	elements.reconnectBtn.classList.add("bg-zinc-600");
-	elements.reconnectBtn.classList.remove("bg-blue-600", "hover:bg-blue-700");
+    elements.reconnectBtn.disabled = true;
+    elements.reconnectBtn.classList.add("bg-zinc-600");
+    elements.reconnectBtn.classList.remove("bg-blue-600", "hover:bg-blue-700");
 
-	elements.reconnectBtn.innerHTML = `
+    elements.reconnectBtn.innerHTML = `
 		<i id="reconnectIcon" class="material-symbols-outlined text-4 animate-spin">refresh</i>
 		Connecting...
 	`;
 
-	if (state.ws && state.ws.readyState !== WebSocket.CLOSED) {
-		state.ws.close();
-	}
+    if (state.ws && state.ws.readyState !== WebSocket.CLOSED) {
+        state.ws.close();
+    }
 
-	createWebSocket();
+    createWebSocket();
 };
 
 const resetReconnection = () => {
-	state.reconnectAttempts = 0;
-	if (state.reconnectTimeout) {
-		clearTimeout(state.reconnectTimeout);
-		state.reconnectTimeout = null;
-	}
+    state.reconnectAttempts = 0;
+    if (state.reconnectTimeout) {
+        clearTimeout(state.reconnectTimeout);
+        state.reconnectTimeout = null;
+    }
 };
 
 const updateServerList = (data = null) => {
-	const currentServers = Object.keys(state.serverData);
-	const existingServers = Array.from(elements.serverSelect.options)
-		.slice(1)
-		.map((opt) => opt.value);
+    if (data?.players) {
+        const playersArray = Array.isArray(data.players) ? data.players : [];
+        playersArray.forEach((player) => {
+            if (!player.trainData || !Array.isArray(player.trainData)) return;
+            const trainData = player.trainData;
+            if (typeof trainData !== "object" || trainData === null) {
+                player.trainData = null;
+                return;
+            }
+            player.trainData = [
+                trainData.destination || "Unknown",
+                trainData.class || "Unknown",
+                trainData.headcode || "----",
+                trainData.headcodeClass || "",
+            ];
+        });
+    }
 
-	if (data?.players) {
-		const playersArray = Array.isArray(data.players) ? data.players : [];
+    const currentServers = Object.keys(state.serverData);
+    const totalPlayersCount = Object.values(state.serverData).reduce(
+        (count, serverInfo) =>
+            count +
+            (Array.isArray(serverInfo.players) ? serverInfo.players.length : 0),
+        0,
+    );
 
-		playersArray.forEach((player) => {
-			if (!player.trainData || !Array.isArray(player.trainData)) return;
-			const trainData = player.trainData;
+    if (elements.serverSelect.options[0]) {
+        elements.serverSelect.options[0].textContent = `All Servers (${totalPlayersCount} players)`;
+    }
 
-			if (typeof trainData !== "object" || trainData === null) {
-				player.trainData = null;
-				return;
-			}
+    const existingOptionValues = Array.from(elements.serverSelect.options)
+        .slice(1)
+        .map((o) => o.value);
+    const serversChanged =
+        currentServers.length !== existingOptionValues.length ||
+        currentServers.some((id) => !existingOptionValues.includes(id));
 
-			player.trainData = [
-				trainData.destination || "Unknown",
-				trainData.class || "Unknown",
-				trainData.headcode || "----",
-				trainData.headcodeClass || "",
-			];
-		});
-	}
+    const getServerLabel = (jobId) => {
+        const name =
+            jobId.length > 6
+                ? `Server ${jobId.substring(jobId.length - 6)}`
+                : `Server ${jobId}`;
+        const count = Array.isArray(state.serverData[jobId]?.players)
+            ? state.serverData[jobId].players.length
+            : 0;
+        return `${name} (${count} / 50 players)`;
+    };
 
-	// this will constantly recreate the options which can
-	//  make selecting an option difficult on certain browsers
-	// TODO: only update when required
-	const selectedValue = elements.serverSelect.value;
-	const totalPlayersCount = Object.values(state.serverData).reduce(
-		(count, serverInfo) =>
-			count +
-			(Array.isArray(serverInfo.players) ? serverInfo.players.length : 0),
-		0,
-	);
+    if (serversChanged) {
+        const selectedValue = elements.serverSelect.value;
+        while (elements.serverSelect.options.length > 1)
+            elements.serverSelect.remove(1);
+        currentServers.forEach((jobId) => {
+            const option = document.createElement("option");
+            option.value = jobId;
+            option.textContent = getServerLabel(jobId);
+            elements.serverSelect.appendChild(option);
+        });
+        if (
+            selectedValue !== "all" &&
+            !currentServers.includes(selectedValue)
+        ) {
+            elements.serverSelect.value = "all";
+            elements.joinBtn.href =
+                "roblox://experiences/start?placeId=12018816388";
+            state.currentServer = "all";
+        } else {
+            elements.serverSelect.value = selectedValue;
+        }
+    } else {
+        Array.from(elements.serverSelect.options)
+            .slice(1)
+            .forEach((option) => {
+                option.textContent = getServerLabel(option.value);
+            });
+        const selectedValue = elements.serverSelect.value;
+        if (
+            selectedValue !== "all" &&
+            !currentServers.includes(selectedValue)
+        ) {
+            elements.serverSelect.value = "all";
+            elements.joinBtn.href =
+                "roblox://experiences/start?placeId=12018816388";
+            state.currentServer = "all";
+        }
+    }
+};
 
-	let html = `<option value="all">All Servers (${totalPlayersCount} players)</option>`;
+const TELEPORT_THRESHOLD = 1500; // Distance threshold for teleport detection
+const BUFFER_DELAY = 1100; // Render this far behind live data so we always have two points to interpolate between (In ms)
 
-	currentServers.forEach((jobId) => {
-		const serverName =
-			jobId.length > 6
-				? `Server ${jobId.substring(jobId.length - 6)}`
-				: `Server ${jobId}`;
-		const playerCount = Array.isArray(state.serverData[jobId]?.players)
-			? state.serverData[jobId].players.length
-			: 0;
-		const selected = selectedValue === jobId ? " selected" : "";
-		html += `<option value="${jobId}"${selected}>${serverName} (${playerCount} / 50 players)</option>`;
-	});
+const getDisplayPosition = (userId, fallback) => {
+    const buffer = state.positionBuffer[userId];
+    if (!buffer || buffer.length === 0) return fallback;
 
-	elements.serverSelect.innerHTML = html;
+    const renderTime = Date.now() - BUFFER_DELAY;
 
-	if (selectedValue !== "all" && !currentServers.includes(selectedValue)) {
-		elements.serverSelect.value = "all";
-		elements.joinBtn.href = "roblox://experiences/start?placeId=12018816388";
-		state.currentServer = "all";
-	} else {
-		elements.serverSelect.value = selectedValue;
-	}
+    if (renderTime <= buffer[0].t) return { x: buffer[0].x, y: buffer[0].y };
+    if (renderTime >= buffer[buffer.length - 1].t) {
+        const last = buffer[buffer.length - 1];
+        return { x: last.x, y: last.y };
+    }
+
+    for (let i = 0; i < buffer.length - 1; i++) {
+        if (buffer[i].t <= renderTime && renderTime < buffer[i + 1].t) {
+            const t =
+                (renderTime - buffer[i].t) / (buffer[i + 1].t - buffer[i].t);
+            return {
+                x: buffer[i].x + (buffer[i + 1].x - buffer[i].x) * t,
+                y: buffer[i].y + (buffer[i + 1].y - buffer[i].y) * t,
+            };
+        }
+    }
+
+    return fallback;
+};
+
+const startAnimationLoop = () => {
+    if (state.animationFrameId !== null) return;
+    const tick = () => {
+        drawScene();
+        if (state.getAllPlayers().length > 0) {
+            state.animationFrameId = requestAnimationFrame(tick);
+        } else {
+            state.animationFrameId = null;
+        }
+    };
+    state.animationFrameId = requestAnimationFrame(tick);
 };
 
 const TRAIN_PATH = {
-	body: new Path2D("M1 1 l10 0 l1 2 l-1 2 l-10 0 Z"),
-	hood: new Path2D("M8.5 1 l2 0 l1 2 l-1 2 l-2 0 l1,-2Z"),
-	window: new Path2D("M8.5 1 l 1,2 l -1,2"),
-	outline: new Path2D("M1 1 l10 0 l1 2 l-1 2 l-10 0 Z")
+    body: new Path2D("M1 1 l10 0 l1 2 l-1 2 l-10 0 Z"),
+    hood: new Path2D("M8.5 1 l2 0 l1 2 l-1 2 l-2 0 l1,-2Z"),
+    window: new Path2D("M8.5 1 l 1,2 l -1,2"),
+    outline: new Path2D("M1 1 l10 0 l1 2 l-1 2 l-10 0 Z"),
 };
 
+const FOLLOW_LERP = 0.12;
+
 const drawScene = () => {
-	const transformedPoint1 = context.transformedPoint(0, 0);
-	const transformedPoint2 = context.transformedPoint(
-		canvas.width,
-		canvas.height,
-	);
-	context.clearRect(
-		transformedPoint1.x,
-		transformedPoint1.y,
-		transformedPoint2.x - transformedPoint1.x,
-		transformedPoint2.y - transformedPoint1.y,
-	);
+    if (state.followMode && state.pinnedPlayer) {
+        const allPlayers = state.getAllPlayers();
+        const pinnedPlayer = allPlayers.find(
+            (p) => p.username === state.pinnedPlayer.username,
+        );
+        if (pinnedPlayer) {
+            const displayPos = getDisplayPosition(
+                String(pinnedPlayer.userId),
+                pinnedPlayer.position ?? { x: 0, y: 0 },
+            );
+            const canvasPos = worldToCanvas(displayPos.x, displayPos.y);
+            const t = context.getTransform();
+            const screenX = canvasPos.x * t.a + canvasPos.y * t.c + t.e;
+            const screenY = canvasPos.x * t.b + canvasPos.y * t.d + t.f;
+            const dx = (canvas.width / 2 - screenX) * FOLLOW_LERP;
+            const dy = (canvas.height / 2 - screenY) * FOLLOW_LERP;
+            if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+                const pt0 = context.transformedPoint(0, 0);
+                const pt1 = context.transformedPoint(dx, dy);
+                context.translate(pt1.x - pt0.x, pt1.y - pt0.y);
+            }
+        }
+    }
 
-	const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
-	const canvasAspectRatio = canvas.width / canvas.height;
+    const transformedPoint1 = context.transformedPoint(0, 0);
+    const transformedPoint2 = context.transformedPoint(
+        canvas.width,
+        canvas.height,
+    );
+    context.clearRect(
+        transformedPoint1.x,
+        transformedPoint1.y,
+        transformedPoint2.x - transformedPoint1.x,
+        transformedPoint2.y - transformedPoint1.y,
+    );
 
-	const scaleFactor =
-		mapAspectRatio > canvasAspectRatio
-			? canvas.width / MAP_CONFIG.totalWidth
-			: canvas.height / MAP_CONFIG.totalHeight;
+    const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
+    const canvasAspectRatio = canvas.width / canvas.height;
 
-	const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
-	const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
-	const offsetX = (canvas.width - scaledMapWidth) / 2;
-	const offsetY = (canvas.height - scaledMapHeight) / 2;
+    const scaleFactor =
+        mapAspectRatio > canvasAspectRatio
+            ? canvas.width / MAP_CONFIG.totalWidth
+            : canvas.height / MAP_CONFIG.totalHeight;
 
-	const chunkWidth = MAP_CONFIG.totalWidth / MAP_CONFIG.columns;
-	const chunkHeight = MAP_CONFIG.totalHeight / MAP_CONFIG.rows;
-	const scaledChunkWidth = chunkWidth * scaleFactor;
-	const scaledChunkHeight = chunkHeight * scaleFactor;
+    const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
+    const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
+    const offsetX = (canvas.width - scaledMapWidth) / 2;
+    const offsetY = (canvas.height - scaledMapHeight) / 2;
 
-	context.imageSmoothingEnabled = false;
+    const chunkWidth = MAP_CONFIG.totalWidth / MAP_CONFIG.columns;
+    const chunkHeight = MAP_CONFIG.totalHeight / MAP_CONFIG.rows;
+    const scaledChunkWidth = chunkWidth * scaleFactor;
+    const scaledChunkHeight = chunkHeight * scaleFactor;
 
-	for (let row = 0; row < MAP_CONFIG.rows; row++) {
-		for (let column = 0; column < MAP_CONFIG.columns; column++) {
-			const image = state.mapImages[row]?.[column];
-			if (image?.complete) {
-				const destinationX = offsetX + column * scaledChunkWidth;
-				const destinationY = offsetY + row * scaledChunkHeight;
+    context.imageSmoothingEnabled = false;
 
-				const overlap = Math.max(0.5, 2 / state.currentScale);
-				const drawWidth =
-					scaledChunkWidth + (column < MAP_CONFIG.columns - 1 ? overlap : 0);
-				const drawHeight =
-					scaledChunkHeight + (row < MAP_CONFIG.rows - 1 ? overlap : 0);
+    for (let row = 0; row < MAP_CONFIG.rows; row++) {
+        for (let column = 0; column < MAP_CONFIG.columns; column++) {
+            const image = state.mapImages[row]?.[column];
+            if (image?.complete) {
+                const destinationX = offsetX + column * scaledChunkWidth;
+                const destinationY = offsetY + row * scaledChunkHeight;
 
-				context.drawImage(
-					image,
-					0,
-					0,
-					image.width,
-					image.height,
-					destinationX,
-					destinationY,
-					drawWidth,
-					drawHeight,
-				);
-			}
-		}
-	}
-	context.imageSmoothingEnabled = true;
+                const overlap = Math.max(0.5, 2 / state.currentScale);
+                const drawWidth =
+                    scaledChunkWidth +
+                    (column < MAP_CONFIG.columns - 1 ? overlap : 0);
+                const drawHeight =
+                    scaledChunkHeight +
+                    (row < MAP_CONFIG.rows - 1 ? overlap : 0);
 
-	const playersToShow = state.getAllPlayers();
-	elements.players.innerHTML = `Players: ${playersToShow.length}`;
+                context.drawImage(
+                    image,
+                    0,
+                    0,
+                    image.width,
+                    image.height,
+                    destinationX,
+                    destinationY,
+                    drawWidth,
+                    drawHeight,
+                );
+            }
+        }
+    }
+    context.imageSmoothingEnabled = true;
 
-	const dotScaleFactor = Math.max(0.3, 1 / Math.pow(state.currentScale, 0.4));
+    const playersToShow = state.getAllPlayers();
+    elements.players.innerHTML = `Players: ${playersToShow.length}`;
 
-	let activePlayerIds = [];
-	playersToShow.forEach((player) => {
-		activePlayerIds.push(String(player.userId));
+    const dotScaleFactor = Math.max(0.3, 1 / Math.pow(state.currentScale, 0.4));
 
-		const worldX = player.position?.x ?? 0;
-		const worldY = player.position?.y ?? 0;
-		const name = player.username ?? "Unknown";
+    let activePlayerIds = [];
+    playersToShow.forEach((player) => {
+        activePlayerIds.push(String(player.userId));
 
-		const canvasPosition = worldToCanvas(worldX, worldY);
-		const isPinned = state.pinnedPlayer?.username === name;
-		const isHovered = state.hoveredPlayer?.username === name;
-		const baseRadius = (isPinned || isHovered) ? 2.5 : 2;
-		const radius = baseRadius * dotScaleFactor;
+        const targetPosition = player.position ?? { x: 0, y: 0 };
+        const displayPos = getDisplayPosition(
+            String(player.userId),
+            targetPosition,
+        );
+        const worldX = displayPos.x;
+        const worldY = displayPos.y;
+        const name = player.username ?? "Unknown";
 
-		if (player.trainData) {
-			const lastPlayerPosition = state.previousPlayerPosition[player.userId]?.position ?? { x: 0, y: 0 };
+        const canvasPosition = worldToCanvas(worldX, worldY);
+        const isPinned = state.pinnedPlayer?.username === name;
+        const isHovered = state.hoveredPlayer?.username === name;
+        const baseRadius = isPinned || isHovered ? 2.5 : 2;
+        const radius = baseRadius * dotScaleFactor;
 
-			const dist = (player.position.x - lastPlayerPosition.x) ** 2 + (player.position.y - lastPlayerPosition.y) ** 2;
-			let markerAngle = Math.atan2((player.position.y - lastPlayerPosition.y), (player.position.x - lastPlayerPosition.x));
+        if (player.trainData) {
+            // derive angle from the buffer segment currently being rendered
+            let markerAngle =
+                state.previousPlayerPosition[player.userId]?.angle ?? 0;
+            const uid = String(player.userId);
+            const buf = state.positionBuffer[uid];
+            if (buf && buf.length >= 2) {
+                const renderTime = Date.now() - BUFFER_DELAY;
+                for (let i = 0; i < buf.length - 1; i++) {
+                    if (buf[i].t <= renderTime && renderTime < buf[i + 1].t) {
+                        const dx = buf[i + 1].x - buf[i].x;
+                        const dy = buf[i + 1].y - buf[i].y;
+                        // take care of "disco trains" require minimum distance to change angle
+                        if (dx * dx + dy * dy > 1) {
+                            markerAngle = Math.atan2(dy, dx);
+                            if (state.previousPlayerPosition[player.userId]) {
+                                state.previousPlayerPosition[
+                                    player.userId
+                                ].angle = markerAngle;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
 
-			// take care of "disco trains" require minimum distance to change angle
-			if (dist > 1) {
-				if (state.previousPlayerPosition[player.userId]) {
-					state.previousPlayerPosition[player.userId].angle = markerAngle;
-				}
-			}
-			else {
-				markerAngle = state.previousPlayerPosition[player.userId].angle ?? 0;
-			}
+            // DRAW TRAIN
+            //  check train.svg. can't access the DOM of a svg within a <img>, but want to be able to dynamically color.
+            //  draw the train by hand!
+            const trainMarkerDim = { x: 12, y: 6 };
+            const trainScale = isPinned || isHovered ? 0.5 : 0.4;
+            context.translate(canvasPosition.x, canvasPosition.y);
+            context.rotate(markerAngle);
+            context.scale(trainScale, trainScale);
+            context.translate(-trainMarkerDim.x / 2, -trainMarkerDim.y / 2);
+            context.fillStyle = getPlayerColor(name);
+            context.fill(TRAIN_PATH.body); // BODY
+            context.fillStyle = "#00000020";
+            context.fill(TRAIN_PATH.hood); // HOOD
+            context.strokeStyle = "#000080";
+            context.lineWidth = 1;
+            context.stroke(TRAIN_PATH.window); // WINDOW
+            context.strokeStyle = isPinned || isHovered ? "white" : "black";
+            context.lineWidth = 1;
+            context.stroke(TRAIN_PATH.outline); // OUTLINE
+            context.translate(trainMarkerDim.x / 2, trainMarkerDim.y / 2);
+            context.scale(1 / trainScale, 1 / trainScale);
+            context.rotate(-markerAngle);
+            context.translate(-canvasPosition.x, -canvasPosition.y);
 
-			// DRAW TRAIN
-			//  check train.svg. can't access the DOM of a svg within a <img>, but want to be able to dynamically color.
-			//  draw the train by hand!
-			const trainMarkerDim = { x: 12, y: 6 };
-			const trainScale = (isPinned || isHovered) ? 0.5 : 0.4;
-			context.translate(canvasPosition.x, canvasPosition.y);
-			context.rotate(markerAngle);
-			context.scale(trainScale, trainScale);
-			context.translate(-trainMarkerDim.x / 2, -trainMarkerDim.y / 2);
-			context.fillStyle = getPlayerColor(name);
-			context.fill(TRAIN_PATH.body); // BODY
-			context.fillStyle = "#00000020";
-			context.fill(TRAIN_PATH.hood); // HOOD
-			context.strokeStyle = "#000080";
-			context.lineWidth = 1;
-			context.stroke(TRAIN_PATH.window); // WINDOW
-			context.strokeStyle = (isPinned || isHovered) ? "white" : "black";
-			context.lineWidth = 1;
-			context.stroke(TRAIN_PATH.outline); // OUTLINE
-			context.translate(trainMarkerDim.x / 2, trainMarkerDim.y / 2);
-			context.scale(1 / trainScale, 1 / trainScale);
-			context.rotate(-markerAngle);
-			context.translate(-canvasPosition.x, -canvasPosition.y);
+            state.previousPlayerPosition[player.userId] = {
+                angle: markerAngle,
+            };
+        } else {
+            context.fillStyle = getPlayerColor(name);
+            context.beginPath();
+            context.arc(
+                canvasPosition.x,
+                canvasPosition.y,
+                radius,
+                0,
+                Math.PI * 2,
+            );
+            context.fill();
 
-			state.previousPlayerPosition[player.userId] = { position: player.position, angle: markerAngle };
-		}
-		else { // not a train
-			context.fillStyle = getPlayerColor(name);
-			context.beginPath();
-			context.arc(canvasPosition.x, canvasPosition.y, radius, 0, Math.PI * 2);
-			context.fill();
+            context.strokeStyle = isPinned || isHovered ? "white" : "black";
+            context.lineWidth = Math.max(
+                (isPinned || isHovered ? 0.7 : 0.4) * scaleFactor,
+                0.25,
+            );
+            context.stroke();
+        }
 
-			context.strokeStyle = (isPinned || isHovered) ? "white" : "black";
-			context.lineWidth = Math.max(((isPinned || isHovered) ? 0.7 : 0.4) * scaleFactor, 0.25);
-			context.stroke();
-		}
-	});
+        const teleport = state.playerTeleport[player.userId];
+        if (teleport) {
+            const RIPPLE_DURATION = 700;
+            const elapsed = Date.now() - teleport.at;
+            if (elapsed < RIPPLE_DURATION) {
+                const progress = elapsed / RIPPLE_DURATION;
+                const rippleRadius = radius * (1 + progress * 5);
+                const alpha = (1 - progress) * 0.7;
+                context.beginPath();
+                context.arc(
+                    canvasPosition.x,
+                    canvasPosition.y,
+                    rippleRadius,
+                    0,
+                    Math.PI * 2,
+                );
+                context.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                context.lineWidth = Math.max(0.8 * dotScaleFactor, 0.3);
+                context.stroke();
+            } else {
+                delete state.playerTeleport[player.userId];
+            }
+        }
+    });
 
-	Object.keys(state.previousPlayerPosition).forEach((previousPlayerId) => {
-		if (!activePlayerIds.includes(previousPlayerId)) {
-			delete state.previousPlayerPosition[previousPlayerId];
-		}
-	});
+    Object.keys(state.previousPlayerPosition).forEach((previousPlayerId) => {
+        if (!activePlayerIds.includes(previousPlayerId)) {
+            delete state.previousPlayerPosition[previousPlayerId];
+            delete state.positionBuffer[previousPlayerId];
+            delete state.playerLastUpdateTime[previousPlayerId];
+            delete state.playerTeleport[previousPlayerId];
+        }
+    });
 
-	// Update tooltip position if a player is pinned
-	if (state.pinnedPlayer) {
-		const pinnedStillExists = playersToShow.find(
-			p => p.username === state.pinnedPlayer.username
-		);
-		
-		if (pinnedStillExists) {
-			updateTooltip(pinnedStillExists, true);
-		} else {
-			state.pinnedPlayer = null;
-			elements.tooltip.classList.add("hidden");
-		}
-	}
+    // Update tooltip position if a player is pinned
+    if (state.pinnedPlayer) {
+        const pinnedStillExists = playersToShow.find(
+            (p) => p.username === state.pinnedPlayer.username,
+        );
 
-	if (state.currentScale > 300) return;
-	const markerFontSize = Math.max(0.2, 10 / Math.pow(state.currentScale, 0.3));
-	Object.entries(AREA_MARKERS).forEach(([name, { x, y }]) => {
-		const position = worldToCanvas(x, y);
-		context.font = `${markerFontSize}px Inter`;
+        if (pinnedStillExists) {
+            updateTooltip(pinnedStillExists, true);
+        } else {
+            state.pinnedPlayer = null;
+            elements.tooltip.classList.add("hidden");
+        }
+    }
 
-		const metrics = context.measureText(name);
-		const textWidth = metrics.width;
-		const ascent = metrics.actualBoundingBoxAscent || markerFontSize * 0.8;
-		const descent = metrics.actualBoundingBoxDescent || markerFontSize * 0.2;
-		const textHeight = ascent + descent;
+    if (state.currentScale > 300) return;
+    const markerFontSize = Math.max(
+        0.2,
+        10 / Math.pow(state.currentScale, 0.3),
+    );
+    Object.entries(AREA_MARKERS).forEach(([name, { x, y }]) => {
+        const position = worldToCanvas(x, y);
+        context.font = `${markerFontSize}px Inter`;
 
-		const padX = markerFontSize * 0.6;
-		const padY = markerFontSize * 0.4;
-		const boxWidth = textWidth + padX * 2;
-		const boxHeight = textHeight + padY * 2;
+        const metrics = context.measureText(name);
+        const textWidth = metrics.width;
+        const ascent = metrics.actualBoundingBoxAscent || markerFontSize * 0.8;
+        const descent =
+            metrics.actualBoundingBoxDescent || markerFontSize * 0.2;
+        const textHeight = ascent + descent;
 
-		const boxX = position.x - boxWidth / 2;
-		const boxY = position.y - boxHeight / 2;
+        const padX = markerFontSize * 0.6;
+        const padY = markerFontSize * 0.4;
+        const boxWidth = textWidth + padX * 2;
+        const boxHeight = textHeight + padY * 2;
 
-		const radius = Math.min(boxHeight / 2, markerFontSize * 0.5);
-		context.fillStyle = "#00000078";
-		context.strokeStyle = "transparent";
-		context.lineWidth = Math.max(0.5 * (markerFontSize / 10), 0.4);
+        const boxX = position.x - boxWidth / 2;
+        const boxY = position.y - boxHeight / 2;
 
-		drawRoundedRectangle(context, boxX, boxY, boxWidth, boxHeight, radius);
-		context.fill();
-		context.stroke();
+        const radius = Math.min(boxHeight / 2, markerFontSize * 0.5);
+        context.fillStyle = "#00000078";
+        context.strokeStyle = "transparent";
+        context.lineWidth = Math.max(0.5 * (markerFontSize / 10), 0.4);
 
-		context.fillStyle = "#fff";
-		context.fillText(name, position.x - textWidth / 2, boxY + padY + ascent);
-	});
+        drawRoundedRectangle(context, boxX, boxY, boxWidth, boxHeight, radius);
+        context.fill();
+        context.stroke();
+
+        context.fillStyle = "#fff";
+        context.fillText(
+            name,
+            position.x - textWidth / 2,
+            boxY + padY + ascent,
+        );
+    });
 };
 
 const loadMapImages = () => {
-	for (let row = 0; row < MAP_CONFIG.rows; row++) {
-		state.mapImages[row] = [];
-		for (let column = 0; column < MAP_CONFIG.columns; column++) {
-			const image = new Image();
-			image.src = `/images/row-${row + 1}-column-${column + 1}.png`;
+    for (let row = 0; row < MAP_CONFIG.rows; row++) {
+        state.mapImages[row] = [];
+        for (let column = 0; column < MAP_CONFIG.columns; column++) {
+            const image = new Image();
+            image.src = `/images/row-${row + 1}-column-${column + 1}.png`;
 
-			image.onload = () => {
-				state.loadedImages++;
-				if (state.loadedImages === 1) {
-					initializeMap();
-				} else {
-					drawScene();
-				}
-			};
+            image.onload = () => {
+                state.loadedImages++;
+                if (state.loadedImages === 1) {
+                    initializeMap();
+                } else {
+                    drawScene();
+                }
+            };
 
-			image.onerror = () => {
-				console.error(`Failed to load image: ${image.src}`);
-				state.loadedImages++;
-				drawScene();
-			};
+            image.onerror = () => {
+                console.error(`Failed to load image: ${image.src}`);
+                state.loadedImages++;
+                drawScene();
+            };
 
-			state.mapImages[row][column] = image;
-		}
-	}
+            state.mapImages[row][column] = image;
+        }
+    }
 };
 
 const initializeMap = () => {
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-	const canvasCenter = worldToCanvas(WORLD_CENTER.x, WORLD_CENTER.y);
-	context.translate(
-		window.innerWidth / 2 - canvasCenter.x,
-		window.innerHeight / 2 - canvasCenter.y,
-	);
-	drawScene();
+    const canvasCenter = worldToCanvas(WORLD_CENTER.x, WORLD_CENTER.y);
+    context.translate(
+        window.innerWidth / 2 - canvasCenter.x,
+        window.innerHeight / 2 - canvasCenter.y,
+    );
+    drawScene();
 };
 
 const handleMouseEvents = () => {
-	canvas.addEventListener("mousedown", (event) => {
-		const mousePosition = getCanvasCoordinates(event);
-		state.dragStart = context.transformedPoint(
-			mousePosition.x,
-			mousePosition.y,
-		);
-		state.dragStartTime = Date.now();
-		state.isDragging = true;
-		return false;
-	});
+    canvas.addEventListener("mousedown", (event) => {
+        const mousePosition = getCanvasCoordinates(event);
+        state.dragStart = context.transformedPoint(
+            mousePosition.x,
+            mousePosition.y,
+        );
+        state.dragStartTime = Date.now();
+        state.isDragging = true;
+        return false;
+    });
 
-	canvas.addEventListener("mousemove", (event) => {
-		if (state.isDragging) {
-			if (state.hoveredPlayer && !state.pinnedPlayer) {
-				state.hoveredPlayer = null;
-				elements.tooltip.classList.add("hidden");
-			}
+    canvas.addEventListener("mousemove", (event) => {
+        if (state.isDragging) {
+            state.followMode = false;
+            if (state.hoveredPlayer && !state.pinnedPlayer) {
+                state.hoveredPlayer = null;
+                elements.tooltip.classList.add("hidden");
+            }
 
-			const mousePosition = getCanvasCoordinates(event);
-			const currentPoint = context.transformedPoint(
-				mousePosition.x,
-				mousePosition.y,
-			);
-			const distanceX = currentPoint.x - state.dragStart.x;
-			const distanceY = currentPoint.y - state.dragStart.y;
+            const mousePosition = getCanvasCoordinates(event);
+            const currentPoint = context.transformedPoint(
+                mousePosition.x,
+                mousePosition.y,
+            );
+            const distanceX = currentPoint.x - state.dragStart.x;
+            const distanceY = currentPoint.y - state.dragStart.y;
 
-			context.translate(distanceX, distanceY);
-			drawScene();
-		} else {
-			if (!state.pinnedPlayer) {
-				const mousePosition = getCanvasCoordinates(event);
-				const player = getPlayerAtPosition(mousePosition.x, mousePosition.y);
+            context.translate(distanceX, distanceY);
+            drawScene();
+        } else {
+            if (!state.pinnedPlayer) {
+                const mousePosition = getCanvasCoordinates(event);
+                const player = getPlayerAtPosition(
+                    mousePosition.x,
+                    mousePosition.y,
+                );
 
-				if (player !== state.hoveredPlayer) {
-					state.hoveredPlayer = player;
-					updateTooltip(player, false);
-					drawScene();
-				}
-			}
-		}
-	});
+                if (player !== state.hoveredPlayer) {
+                    state.hoveredPlayer = player;
+                    updateTooltip(player, false);
+                    drawScene();
+                }
+            }
+        }
+    });
 
-	canvas.addEventListener("mouseleave", () => {
-		state.isDragging = false;
-		state.dragStart = null;
+    canvas.addEventListener("mouseleave", () => {
+        state.isDragging = false;
+        state.dragStart = null;
 
-		if (state.hoveredPlayer && !state.pinnedPlayer) {
-			state.hoveredPlayer = null;
-			elements.tooltip.classList.add("hidden");
-			drawScene();
-		}
-	});
+        if (state.hoveredPlayer && !state.pinnedPlayer) {
+            state.hoveredPlayer = null;
+            elements.tooltip.classList.add("hidden");
+            drawScene();
+        }
+    });
 
-	canvas.addEventListener("mouseup", (event) => {
-		const clickDuration = Date.now() - state.dragStartTime;
-		const mousePosition = getCanvasCoordinates(event);
-		
-		if (clickDuration < 200) {
-			const player = getPlayerAtPosition(mousePosition.x, mousePosition.y);
-			
-			if (player) {
-				if (state.pinnedPlayer?.username === player.username) {
-					state.pinnedPlayer = null;
-					state.hoveredPlayer = null;
-					elements.tooltip.classList.add("hidden");
-				} else {
-					state.pinnedPlayer = player;
-					state.hoveredPlayer = null;
-					updateTooltip(player, true);
-				}
-				drawScene();
-			} else if (state.pinnedPlayer) {
-				// Clicked empty space, unpin
-				state.pinnedPlayer = null;
-				elements.tooltip.classList.add("hidden");
-				drawScene();
-			}
-		}
+    canvas.addEventListener("mouseup", (event) => {
+        const clickDuration = Date.now() - state.dragStartTime;
+        const mousePosition = getCanvasCoordinates(event);
 
-		state.isDragging = false;
-		state.dragStart = null;
-		state.dragStartTime = null;
-	});
+        if (clickDuration < 200) {
+            const player = getPlayerAtPosition(
+                mousePosition.x,
+                mousePosition.y,
+            );
 
-	canvas.addEventListener(
-		"wheel",
-		(event) => {
-			event.preventDefault();
-			const zoomIntensity = 0.1;
-			const scale = event.deltaY < 0 ? 1 + zoomIntensity : 1 - zoomIntensity;
-			const mousePosition = getCanvasCoordinates(event);
-			zoomAt(mousePosition.x, mousePosition.y, scale);
-		},
-		{ passive: false },
-	);
+            if (player) {
+                if (state.pinnedPlayer?.username === player.username) {
+                    state.pinnedPlayer = null;
+                    state.hoveredPlayer = null;
+                    state.followMode = false;
+                    elements.tooltip.classList.add("hidden");
+                } else {
+                    state.pinnedPlayer = player;
+                    state.hoveredPlayer = null;
+                    state.followMode = true;
+                    updateTooltip(player, true);
+                }
+                drawScene();
+            } else if (state.pinnedPlayer) {
+                // Clicked empty space, unpin
+                state.pinnedPlayer = null;
+                state.followMode = false;
+                elements.tooltip.classList.add("hidden");
+                drawScene();
+            }
+        }
+
+        state.isDragging = false;
+        state.dragStart = null;
+        state.dragStartTime = null;
+    });
+
+    canvas.addEventListener(
+        "wheel",
+        (event) => {
+            event.preventDefault();
+            const zoomIntensity = 0.1;
+            const scale =
+                event.deltaY < 0 ? 1 + zoomIntensity : 1 - zoomIntensity;
+            const mousePosition = getCanvasCoordinates(event);
+            zoomAt(mousePosition.x, mousePosition.y, scale);
+        },
+        { passive: false },
+    );
 };
 
 const handleTouchEvents = () => {
-	let touchStartTime = null;
+    let touchStartTime = null;
 
-	canvas.addEventListener(
-		"touchstart",
-		(event) => {
-			touchStartTime = Date.now();
+    canvas.addEventListener(
+        "touchstart",
+        (event) => {
+            touchStartTime = Date.now();
 
-			if (event.touches.length === 1) {
-				const touchPosition = getCanvasCoordinates(event.touches[0]);
-				state.dragStart = context.transformedPoint(
-					touchPosition.x,
-					touchPosition.y,
-				);
-				state.isDragging = true;
-			} else if (event.touches.length === 2) {
-				state.lastTouchDistance = getDistanceBetweenTouches(event.touches);
-			}
-		},
-		{ passive: false },
-	);
+            if (event.touches.length === 1) {
+                const touchPosition = getCanvasCoordinates(event.touches[0]);
+                state.dragStart = context.transformedPoint(
+                    touchPosition.x,
+                    touchPosition.y,
+                );
+                state.isDragging = true;
+            } else if (event.touches.length === 2) {
+                state.lastTouchDistance = getDistanceBetweenTouches(
+                    event.touches,
+                );
+            }
+        },
+        { passive: false },
+    );
 
-	canvas.addEventListener(
-		"touchmove",
-		(event) => {
-			event.preventDefault();
+    canvas.addEventListener(
+        "touchmove",
+        (event) => {
+            event.preventDefault();
 
-			if (event.touches.length === 1 && state.isDragging) {
-				const touchPosition = getCanvasCoordinates(event.touches[0]);
-				const currentPoint = context.transformedPoint(
-					touchPosition.x,
-					touchPosition.y,
-				);
-				const distanceX = currentPoint.x - state.dragStart.x;
-				const distanceY = currentPoint.y - state.dragStart.y;
+            if (event.touches.length === 1 && state.isDragging) {
+                state.followMode = false;
+                const touchPosition = getCanvasCoordinates(event.touches[0]);
+                const currentPoint = context.transformedPoint(
+                    touchPosition.x,
+                    touchPosition.y,
+                );
+                const distanceX = currentPoint.x - state.dragStart.x;
+                const distanceY = currentPoint.y - state.dragStart.y;
 
-				context.translate(distanceX, distanceY);
-				drawScene();
-			} else if (event.touches.length === 2) {
-				const newDistance = getDistanceBetweenTouches(event.touches);
-				const scale = newDistance / state.lastTouchDistance;
+                context.translate(distanceX, distanceY);
+                drawScene();
+            } else if (event.touches.length === 2) {
+                const newDistance = getDistanceBetweenTouches(event.touches);
+                const scale = newDistance / state.lastTouchDistance;
 
-				const centerX =
-					(event.touches[0].clientX + event.touches[1].clientX) / 2;
-				const centerY =
-					(event.touches[0].clientY + event.touches[1].clientY) / 2;
+                const centerX =
+                    (event.touches[0].clientX + event.touches[1].clientX) / 2;
+                const centerY =
+                    (event.touches[0].clientY + event.touches[1].clientY) / 2;
 
-				zoomAt(centerX, centerY, scale);
-				state.lastTouchDistance = newDistance;
-			}
-		},
-		{ passive: false },
-	);
+                zoomAt(centerX, centerY, scale);
+                state.lastTouchDistance = newDistance;
+            }
+        },
+        { passive: false },
+    );
 
-	canvas.addEventListener("touchend", (event) => {
-		const touchDuration = Date.now() - touchStartTime;
+    canvas.addEventListener("touchend", (event) => {
+        const touchDuration = Date.now() - touchStartTime;
 
-		if (event.touches.length < 2) state.lastTouchDistance = 0;
-		
-		if (event.touches.length === 0) {
-			if (touchDuration < 200 && event.changedTouches.length === 1) {
-				const touchPosition = getCanvasCoordinates(event.changedTouches[0]);
-				const player = getPlayerAtPosition(touchPosition.x, touchPosition.y);
-				
-				if (player) {
-					if (state.pinnedPlayer?.username === player.username) {
-						state.pinnedPlayer = null;
-						state.hoveredPlayer = null;
-						elements.tooltip.classList.add("hidden");
-					} else {
-						state.pinnedPlayer = player;
-						state.hoveredPlayer = null;
-						updateTooltip(player, true);
-					}
-					drawScene();
-				} else if (state.pinnedPlayer) {
-					state.pinnedPlayer = null;
-					elements.tooltip.classList.add("hidden");
-					drawScene();
-				}
-			}
+        if (event.touches.length < 2) state.lastTouchDistance = 0;
 
-			state.isDragging = false;
-			state.dragStart = null;
-			touchStartTime = null;
-		}
-	});
+        if (event.touches.length === 0) {
+            if (touchDuration < 200 && event.changedTouches.length === 1) {
+                const touchPosition = getCanvasCoordinates(
+                    event.changedTouches[0],
+                );
+                const player = getPlayerAtPosition(
+                    touchPosition.x,
+                    touchPosition.y,
+                );
+
+                if (player) {
+                    if (state.pinnedPlayer?.username === player.username) {
+                        state.pinnedPlayer = null;
+                        state.hoveredPlayer = null;
+                        state.followMode = false;
+                        elements.tooltip.classList.add("hidden");
+                    } else {
+                        state.pinnedPlayer = player;
+                        state.hoveredPlayer = null;
+                        state.followMode = true;
+                        updateTooltip(player, true);
+                    }
+                    drawScene();
+                } else if (state.pinnedPlayer) {
+                    state.pinnedPlayer = null;
+                    state.followMode = false;
+                    elements.tooltip.classList.add("hidden");
+                    drawScene();
+                }
+            }
+
+            state.isDragging = false;
+            state.dragStart = null;
+            touchStartTime = null;
+        }
+    });
 };
 
 elements.serverSelect.addEventListener("change", () => {
-	state.currentServer = elements.serverSelect.value;
-	drawScene();
+    state.currentServer = elements.serverSelect.value;
+    drawScene();
 
-	if (elements.serverSelect.value === "all") {
-		elements.joinBtn.href = "roblox://experiences/start?placeId=12018816388";
-	} else {
-		elements.joinBtn.href =
-			"roblox://experiences/start?placeId=12018816388&gameInstanceId=" +
-			encodeURIComponent(elements.serverSelect.value);
-	}
+    if (elements.serverSelect.value === "all") {
+        elements.joinBtn.href =
+            "roblox://experiences/start?placeId=12018816388";
+    } else {
+        elements.joinBtn.href =
+            "roblox://experiences/start?placeId=12018816388&gameInstanceId=" +
+            encodeURIComponent(elements.serverSelect.value);
+    }
 });
 
 elements.reconnectBtn.addEventListener("click", () => {
-	if (state.reconnectTimeout) {
-		clearTimeout(state.reconnectTimeout);
-		state.reconnectTimeout = null;
-	}
+    if (state.reconnectTimeout) {
+        clearTimeout(state.reconnectTimeout);
+        state.reconnectTimeout = null;
+    }
 
-	state.reconnectAttempts = 0;
-	attemptReconnect();
+    state.reconnectAttempts = 0;
+    attemptReconnect();
 });
 
 const start = () => {
-	trackTransforms();
-	loadMapImages();
-	handleMouseEvents();
-	handleTouchEvents();
-	window.addEventListener("resize", handleWindowResize);
+    trackTransforms();
+    loadMapImages();
+    handleMouseEvents();
+    handleTouchEvents();
+    window.addEventListener("resize", handleWindowResize);
 
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-	drawScene();
-	elements.serverSelect.innerHTML =
-		'<option value="all">All Servers (0 players)</option>';
-	createWebSocket();
+    drawScene();
+    elements.serverSelect.innerHTML =
+        '<option value="all">All Servers (0 players)</option>';
+    createWebSocket();
 };
 
 start();
