@@ -160,6 +160,7 @@ class AppState {
         this.reconnectTimeout = null;
         this.mapImages = [];
         this.mapLoadId = 0;
+        this.mapInitialized = false;
         this.totalImages = MAP_CONFIG.rows * MAP_CONFIG.columns;
         this.staleCheckInterval = null;
         this.previousPlayerPosition = {};
@@ -1109,36 +1110,38 @@ const getTileUrl = (row, column, quality) => {
 
 const loadMapImages = () => {
     const loadId = ++state.mapLoadId;
-    const isFirstLoad = state.mapImages.length === 0;
-    const pendingImages = [];
-    let loadedCount = 0;
+    const needsInit = state.mapImages.length === 0;
+    if (needsInit) state.mapImages = [];
 
     for (let row = 0; row < MAP_CONFIG.rows; row++) {
-        pendingImages[row] = [];
+        if (!state.mapImages[row]) state.mapImages[row] = [];
+
         for (let column = 0; column < MAP_CONFIG.columns; column++) {
             const image = new Image();
             image.src = getTileUrl(row, column, state.currentQuality);
 
-            const onSettled = () => {
+            image.onload = () => {
                 if (loadId !== state.mapLoadId) return;
-                loadedCount++;
-                if (loadedCount === state.totalImages) {
-                    state.mapImages = pendingImages;
-                    if (isFirstLoad) {
-                        initializeMap();
-                    } else {
-                        drawScene();
-                    }
+                state.mapImages[row][column] = image;
+                if (needsInit && !state.mapInitialized) {
+                    state.mapInitialized = true;
+                    initializeMap();
+                } else {
+                    drawScene();
                 }
             };
 
-            image.onload = onSettled;
             image.onerror = () => {
-                console.error(`Failed to load image: ${image.src}`);
-                onSettled();
+                const highQualityUrl = getTileUrl(row, column, "high");
+                if (image.src.endsWith(highQualityUrl)) {
+                    console.error(`Failed to load image: ${image.src}`);
+                    return;
+                }
+                console.warn(
+                    `Falling back to high quality for row ${row + 1} column ${column + 1}: ${image.src} not ready`,
+                );
+                image.src = highQualityUrl;
             };
-
-            pendingImages[row][column] = image;
         }
     }
 };

@@ -4,7 +4,9 @@ import { WSContext } from "hono/ws";
 import z from "zod/v4";
 import { generateTileVariants } from "./tile-images";
 
-await generateTileVariants();
+generateTileVariants().catch((error) => {
+	console.error("Tile variant generation failed:", error);
+});
 
 const playersCache: Map<string, number[]> = new Map();
 const serverTimeouts: Map<string, NodeJS.Timeout> = new Map();

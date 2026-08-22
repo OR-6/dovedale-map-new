@@ -5,9 +5,10 @@ const GENERATED_DIR = "./public/images/generated";
 const MANIFEST_PATH = `${GENERATED_DIR}/manifest.json`;
 
 const QUALITY_VARIANTS = [
-	{ name: "medium", webpQuality: 60 },
-	{ name: "low", webpQuality: 25 },
+	{ name: "medium", widthPercent: 75, webpQuality: 70 },
+	{ name: "low", widthPercent: 45, webpQuality: 55 },
 ];
+const VARIANTS_CONFIG_HASH = Bun.hash(JSON.stringify(QUALITY_VARIANTS)).toString(16);
 
 const MAP_ROWS = 1;
 const MAP_COLUMNS = 16;
@@ -38,15 +39,21 @@ async function generateTile(tileKey: string, manifest: Record<string, string>) {
 	if (!(await sourceFile.exists())) return;
 
 	const sourceBytes = await sourceFile.arrayBuffer();
-	const hash = Bun.hash(sourceBytes).toString(16);
+	const contentHash = Bun.hash(sourceBytes).toString(16);
+	const hash = `${contentHash}-${VARIANTS_CONFIG_HASH}`;
 
 	if (manifest[tileKey] === hash && (await variantFilesExist(tileKey))) {
 		return;
 	}
 
+	const sourceWidth = (await sharp(sourceBytes).metadata()).width ?? 0;
+
 	await Promise.all(
 		QUALITY_VARIANTS.map((variant) =>
 			sharp(sourceBytes)
+				.resize({
+					width: Math.round((sourceWidth * variant.widthPercent) / 100),
+				})
 				.webp({ quality: variant.webpQuality })
 				.toFile(`${GENERATED_DIR}/${tileKey}-${variant.name}.webp`),
 		),
