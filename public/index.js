@@ -1,6 +1,6 @@
 const WORLD_BOUNDS = {
     TOP_LEFT: { x: -23818, y: -10426 },
-    BOTTOM_RIGHT: { x: 20504, y: 11377 },
+    BOTTOM_RIGHT: { x: 14911, y: 13693 },
 };
 
 const WORLD_WIDTH = WORLD_BOUNDS.BOTTOM_RIGHT.x - WORLD_BOUNDS.TOP_LEFT.x;
@@ -15,14 +15,14 @@ const STALE_SERVER_TIMEOUT = 30_000;
 const MAP_CONFIG = {
     rows: 1,
     columns: 16,
-    totalWidth: 28680,
-    totalHeight: 13724,
+    totalWidth: 19366,
+    totalHeight: 12061,
 };
 
 const AREA_MARKERS = {
     "Gleethrop End": {
-        x: 1274,
-        y: 3563,
+        x: -1502,
+        y: 7910,
     },
     Groenewoud: {
         x: -14658,
@@ -37,8 +37,8 @@ const AREA_MARKERS = {
         y: -3954,
     },
     Mazewood: {
-        x: -4650,
-        y: 5798,
+        x: -6473,
+        y: 11481,
     },
     Conby: {
         x: -11688,
@@ -57,8 +57,8 @@ const AREA_MARKERS = {
         y: -5201,
     },
     Perthtyne: {
-        x: -490,
-        y: 5268,
+        x: -2618,
+        y: 10055,
     },
     Ashburn: {
         x: -22012,
@@ -87,6 +87,18 @@ const AREA_MARKERS = {
     Satus: {
         x: -7485,
         y: -3055,
+    },
+    "Cosdale Town": {
+        x: 5860,
+        y: -5155,
+    },
+    "Westwood Park": {
+        x: 1513,
+        y: 3414,
+    },
+    "Wington Quarry": {
+        x: 2676,
+        y: -3410,
     },
 };
 
