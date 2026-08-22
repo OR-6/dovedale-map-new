@@ -2,6 +2,9 @@ import { Context, Hono } from "hono";
 import { serveStatic, upgradeWebSocket, websocket } from "hono/bun";
 import { WSContext } from "hono/ws";
 import z from "zod/v4";
+import { generateTileVariants } from "./tile-images";
+
+await generateTileVariants();
 
 const playersCache: Map<string, number[]> = new Map();
 const serverTimeouts: Map<string, NodeJS.Timeout> = new Map();

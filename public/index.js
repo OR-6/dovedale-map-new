@@ -124,6 +124,7 @@ const elements = {
     joinBtn: document.getElementById("joinBtn"),
     zoomInBtn: document.getElementById("zoom-in"),
     zoomOutBtn: document.getElementById("zoom-out"),
+    qualitySelect: document.getElementById("quality"),
 };
 
 const tooltipElements = {
@@ -145,6 +146,7 @@ class AppState {
     constructor() {
         this.serverData = {};
         this.currentServer = "all";
+        this.currentQuality = localStorage.getItem("mapQuality") || "high";
         this.hoveredPlayer = null;
         this.pinnedPlayer = null;
         this.isDragging = false;
@@ -157,7 +159,7 @@ class AppState {
         this.maxReconnectAttempts = 3;
         this.reconnectTimeout = null;
         this.mapImages = [];
-        this.loadedImages = 0;
+        this.mapLoadId = 0;
         this.totalImages = MAP_CONFIG.rows * MAP_CONFIG.columns;
         this.staleCheckInterval = null;
         this.previousPlayerPosition = {};
@@ -1099,29 +1101,44 @@ const drawScene = () => {
     });
 };
 
+const getTileUrl = (row, column, quality) => {
+    const tileName = `row-${row + 1}-column-${column + 1}`;
+    if (quality === "high") return `/images/${tileName}.png`;
+    return `/images/generated/${tileName}-${quality}.webp`;
+};
+
 const loadMapImages = () => {
+    const loadId = ++state.mapLoadId;
+    const isFirstLoad = state.mapImages.length === 0;
+    const pendingImages = [];
+    let loadedCount = 0;
+
     for (let row = 0; row < MAP_CONFIG.rows; row++) {
-        state.mapImages[row] = [];
+        pendingImages[row] = [];
         for (let column = 0; column < MAP_CONFIG.columns; column++) {
             const image = new Image();
-            image.src = `/images/row-${row + 1}-column-${column + 1}.png`;
+            image.src = getTileUrl(row, column, state.currentQuality);
 
-            image.onload = () => {
-                state.loadedImages++;
-                if (state.loadedImages === 1) {
-                    initializeMap();
-                } else {
-                    drawScene();
+            const onSettled = () => {
+                if (loadId !== state.mapLoadId) return;
+                loadedCount++;
+                if (loadedCount === state.totalImages) {
+                    state.mapImages = pendingImages;
+                    if (isFirstLoad) {
+                        initializeMap();
+                    } else {
+                        drawScene();
+                    }
                 }
             };
 
+            image.onload = onSettled;
             image.onerror = () => {
                 console.error(`Failed to load image: ${image.src}`);
-                state.loadedImages++;
-                drawScene();
+                onSettled();
             };
 
-            state.mapImages[row][column] = image;
+            pendingImages[row][column] = image;
         }
     }
 };
@@ -1379,6 +1396,13 @@ elements.serverSelect.addEventListener("change", () => {
             "roblox://experiences/start?placeId=12018816388&gameInstanceId=" +
             encodeURIComponent(elements.serverSelect.value);
     }
+});
+
+elements.qualitySelect.value = state.currentQuality;
+elements.qualitySelect.addEventListener("change", () => {
+    state.currentQuality = elements.qualitySelect.value;
+    localStorage.setItem("mapQuality", state.currentQuality);
+    loadMapImages();
 });
 
 elements.reconnectBtn.addEventListener("click", () => {
