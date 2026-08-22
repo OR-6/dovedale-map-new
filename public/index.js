@@ -122,6 +122,8 @@ const elements = {
     connectionPopup: document.getElementById("connectionPopup"),
     reconnectBtn: document.getElementById("reconnectBtn"),
     joinBtn: document.getElementById("joinBtn"),
+    zoomInBtn: document.getElementById("zoom-in"),
+    zoomOutBtn: document.getElementById("zoom-out"),
 };
 
 const tooltipElements = {
@@ -1245,6 +1247,40 @@ const handleMouseEvents = () => {
     );
 };
 
+const syncTouchState = (touches) => {
+    if (touches.length === 1) {
+        const touchPosition = getCanvasCoordinates(touches[0]);
+        state.dragStart = context.transformedPoint(
+            touchPosition.x,
+            touchPosition.y,
+        );
+        state.isDragging = true;
+        state.lastTouchDistance = 0;
+    } else if (touches.length === 2) {
+        state.isDragging = false;
+        state.dragStart = null;
+        state.lastTouchDistance = getDistanceBetweenTouches(touches);
+    } else {
+        state.isDragging = false;
+        state.dragStart = null;
+        state.lastTouchDistance = 0;
+    }
+};
+
+const handleZoomButtons = () => {
+    const zoomStepIntensity = 1.2;
+
+    elements.zoomInBtn.addEventListener("click", () => {
+        const rect = canvas.getBoundingClientRect();
+        zoomAt(rect.width / 2, rect.height / 2, zoomStepIntensity);
+    });
+
+    elements.zoomOutBtn.addEventListener("click", () => {
+        const rect = canvas.getBoundingClientRect();
+        zoomAt(rect.width / 2, rect.height / 2, 1 / zoomStepIntensity);
+    });
+};
+
 const handleTouchEvents = () => {
     let touchStartTime = null;
 
@@ -1252,19 +1288,7 @@ const handleTouchEvents = () => {
         "touchstart",
         (event) => {
             touchStartTime = Date.now();
-
-            if (event.touches.length === 1) {
-                const touchPosition = getCanvasCoordinates(event.touches[0]);
-                state.dragStart = context.transformedPoint(
-                    touchPosition.x,
-                    touchPosition.y,
-                );
-                state.isDragging = true;
-            } else if (event.touches.length === 2) {
-                state.lastTouchDistance = getDistanceBetweenTouches(
-                    event.touches,
-                );
-            }
+            syncTouchState(event.touches);
         },
         { passive: false },
     );
@@ -1305,8 +1329,6 @@ const handleTouchEvents = () => {
     canvas.addEventListener("touchend", (event) => {
         const touchDuration = Date.now() - touchStartTime;
 
-        if (event.touches.length < 2) state.lastTouchDistance = 0;
-
         if (event.touches.length === 0) {
             if (touchDuration < 200 && event.changedTouches.length === 1) {
                 const touchPosition = getCanvasCoordinates(
@@ -1338,10 +1360,10 @@ const handleTouchEvents = () => {
                 }
             }
 
-            state.isDragging = false;
-            state.dragStart = null;
             touchStartTime = null;
         }
+
+        syncTouchState(event.touches);
     });
 };
 
@@ -1374,6 +1396,7 @@ const start = () => {
     loadMapImages();
     handleMouseEvents();
     handleTouchEvents();
+    handleZoomButtons();
     window.addEventListener("resize", handleWindowResize);
 
     canvas.width = window.innerWidth;
