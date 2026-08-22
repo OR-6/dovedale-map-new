@@ -5,8 +5,8 @@ const GENERATED_DIR = "./public/images/generated";
 const MANIFEST_PATH = `${GENERATED_DIR}/manifest.json`;
 
 const QUALITY_VARIANTS = [
-	{ name: "medium", widthPercent: 75, webpQuality: 70 },
-	{ name: "low", widthPercent: 45, webpQuality: 55 },
+	{ name: "medium", widthPercent: 75, webpQuality: 90 },
+	{ name: "low", widthPercent: 45, webpQuality: 70 },
 ];
 const VARIANTS_CONFIG_HASH = Bun.hash(JSON.stringify(QUALITY_VARIANTS)).toString(16);
 
