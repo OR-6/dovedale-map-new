@@ -237,6 +237,29 @@ const worldToCanvas = (worldX, worldY) => {
     };
 };
 
+const canvasToWorld = (canvasX, canvasY) => {
+    const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
+    const canvasAspectRatio = canvas.width / canvas.height;
+
+    const scaleFactor =
+        mapAspectRatio > canvasAspectRatio
+            ? canvas.width / MAP_CONFIG.totalWidth
+            : canvas.height / MAP_CONFIG.totalHeight;
+
+    const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
+    const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
+    const offsetX = (canvas.width - scaledMapWidth) / 2;
+    const offsetY = (canvas.height - scaledMapHeight) / 2;
+
+    const relativeX = (canvasX - offsetX) / scaledMapWidth;
+    const relativeY = (canvasY - offsetY) / scaledMapHeight;
+
+    return {
+        x: WORLD_BOUNDS.TOP_LEFT.x + relativeX * WORLD_WIDTH,
+        y: WORLD_BOUNDS.TOP_LEFT.y + relativeY * WORLD_HEIGHT,
+    };
+};
+
 function drawRoundedRectangle(context, x, y, width, height, radius) {
     if (width < 2 * radius) radius = width / 2;
     if (height < 2 * radius) radius = height / 2;
@@ -472,20 +495,29 @@ const handleWindowResize = () => {
             return;
         }
 
-        const viewCenter = context.transformedPoint(
+        const viewCenterCanvas = context.transformedPoint(
             canvas.width / 2,
             canvas.height / 2,
+        );
+        const viewCenterWorld = canvasToWorld(
+            viewCenterCanvas.x,
+            viewCenterCanvas.y,
         );
         const scale = state.currentScale;
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        const newViewCenterCanvas = worldToCanvas(
+            viewCenterWorld.x,
+            viewCenterWorld.y,
+        );
+
         context.resetTransform();
         context.scale(scale, scale);
         context.translate(
-            canvas.width / 2 / scale - viewCenter.x,
-            canvas.height / 2 / scale - viewCenter.y,
+            canvas.width / 2 / scale - newViewCenterCanvas.x,
+            canvas.height / 2 / scale - newViewCenterCanvas.y,
         );
 
         drawScene();
@@ -871,17 +903,10 @@ const drawScene = () => {
         }
     }
 
-    const transformedPoint1 = context.transformedPoint(0, 0);
-    const transformedPoint2 = context.transformedPoint(
-        canvas.width,
-        canvas.height,
-    );
-    context.clearRect(
-        transformedPoint1.x,
-        transformedPoint1.y,
-        transformedPoint2.x - transformedPoint1.x,
-        transformedPoint2.y - transformedPoint1.y,
-    );
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.restore();
 
     const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
     const canvasAspectRatio = canvas.width / canvas.height;
