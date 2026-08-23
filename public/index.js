@@ -154,6 +154,8 @@ class AppState {
         this.dragStartTime = null;
         this.currentScale = 1;
         this.lastTouchDistance = 0;
+        this.viewWidth = 0;
+        this.viewHeight = 0;
         this.ws = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
@@ -184,6 +186,20 @@ class AppState {
 const state = new AppState();
 
 // Utility Functions
+const resizeCanvas = (cssWidth, cssHeight) => {
+    const dpr = window.devicePixelRatio || 1;
+
+    state.viewWidth = cssWidth;
+    state.viewHeight = cssHeight;
+
+    canvas.width = cssWidth * dpr;
+    canvas.height = cssHeight * dpr;
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+
+    context.setDevicePixelRatio(dpr);
+};
+
 const getCanvasCoordinates = (event) => {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -219,17 +235,17 @@ const worldToCanvas = (worldX, worldY) => {
     const relativeY = (worldY - WORLD_BOUNDS.TOP_LEFT.y) / WORLD_HEIGHT;
 
     const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
-    const canvasAspectRatio = canvas.width / canvas.height;
+    const canvasAspectRatio = state.viewWidth / state.viewHeight;
 
     const scaleFactor =
         mapAspectRatio > canvasAspectRatio
-            ? canvas.width / MAP_CONFIG.totalWidth
-            : canvas.height / MAP_CONFIG.totalHeight;
+            ? state.viewWidth / MAP_CONFIG.totalWidth
+            : state.viewHeight / MAP_CONFIG.totalHeight;
 
     const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
     const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
-    const offsetX = (canvas.width - scaledMapWidth) / 2;
-    const offsetY = (canvas.height - scaledMapHeight) / 2;
+    const offsetX = (state.viewWidth - scaledMapWidth) / 2;
+    const offsetY = (state.viewHeight - scaledMapHeight) / 2;
 
     return {
         x: offsetX + relativeX * scaledMapWidth,
@@ -239,17 +255,17 @@ const worldToCanvas = (worldX, worldY) => {
 
 const canvasToWorld = (canvasX, canvasY) => {
     const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
-    const canvasAspectRatio = canvas.width / canvas.height;
+    const canvasAspectRatio = state.viewWidth / state.viewHeight;
 
     const scaleFactor =
         mapAspectRatio > canvasAspectRatio
-            ? canvas.width / MAP_CONFIG.totalWidth
-            : canvas.height / MAP_CONFIG.totalHeight;
+            ? state.viewWidth / MAP_CONFIG.totalWidth
+            : state.viewHeight / MAP_CONFIG.totalHeight;
 
     const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
     const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
-    const offsetX = (canvas.width - scaledMapWidth) / 2;
-    const offsetY = (canvas.height - scaledMapHeight) / 2;
+    const offsetX = (state.viewWidth - scaledMapWidth) / 2;
+    const offsetY = (state.viewHeight - scaledMapHeight) / 2;
 
     const relativeX = (canvasX - offsetX) / scaledMapWidth;
     const relativeY = (canvasY - offsetY) / scaledMapHeight;
@@ -275,6 +291,7 @@ function drawRoundedRectangle(context, x, y, width, height, radius) {
 const trackTransforms = () => {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     let transform = svg.createSVGMatrix();
+    let dpr = 1;
 
     context.getTransform = () => transform;
 
@@ -282,8 +299,21 @@ const trackTransforms = () => {
     const original = {
         save: context.save,
         restore: context.restore,
-        scale: context.scale,
-        translate: context.translate,
+    };
+    const originalSetTransform = context.setTransform.bind(context);
+
+    // The native canvas transform is always dpr * transform, so every
+    // pan/zoom op (tracked in CSS-pixel space, DPR-agnostic) still renders
+    // crisp on high-DPI screens without the tracked matrix knowing about DPR.
+    const applyNativeTransform = () => {
+        originalSetTransform(
+            dpr * transform.a,
+            dpr * transform.b,
+            dpr * transform.c,
+            dpr * transform.d,
+            dpr * transform.e,
+            dpr * transform.f,
+        );
     };
 
     context.save = function () {
@@ -299,19 +329,23 @@ const trackTransforms = () => {
     context.scale = function (scaleX, scaleY) {
         transform = transform.scaleNonUniform(scaleX, scaleY);
         state.currentScale *= scaleX;
-        return original.scale.call(context, scaleX, scaleY);
+        applyNativeTransform();
     };
 
     context.translate = function (distanceX, distanceY) {
         transform = transform.translate(distanceX, distanceY);
-        return original.translate.call(context, distanceX, distanceY);
+        applyNativeTransform();
     };
 
-    const originalSetTransform = context.setTransform.bind(context);
     context.resetTransform = function () {
         transform = svg.createSVGMatrix();
         state.currentScale = 1;
-        originalSetTransform(1, 0, 0, 1, 0, 0);
+        applyNativeTransform();
+    };
+
+    context.setDevicePixelRatio = function (newDpr) {
+        dpr = newDpr;
+        applyNativeTransform();
     };
 
     const point = svg.createSVGPoint();
@@ -489,15 +523,15 @@ const handleWindowResize = () => {
 
     resizeTimeout = setTimeout(() => {
         if (
-            canvas.width === window.innerWidth &&
-            canvas.height === window.innerHeight
+            state.viewWidth === window.innerWidth &&
+            state.viewHeight === window.innerHeight
         ) {
             return;
         }
 
         const viewCenterCanvas = context.transformedPoint(
-            canvas.width / 2,
-            canvas.height / 2,
+            state.viewWidth / 2,
+            state.viewHeight / 2,
         );
         const viewCenterWorld = canvasToWorld(
             viewCenterCanvas.x,
@@ -505,8 +539,7 @@ const handleWindowResize = () => {
         );
         const scale = state.currentScale;
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        resizeCanvas(window.innerWidth, window.innerHeight);
 
         const newViewCenterCanvas = worldToCanvas(
             viewCenterWorld.x,
@@ -516,8 +549,8 @@ const handleWindowResize = () => {
         context.resetTransform();
         context.scale(scale, scale);
         context.translate(
-            canvas.width / 2 / scale - newViewCenterCanvas.x,
-            canvas.height / 2 / scale - newViewCenterCanvas.y,
+            state.viewWidth / 2 / scale - newViewCenterCanvas.x,
+            state.viewHeight / 2 / scale - newViewCenterCanvas.y,
         );
 
         drawScene();
@@ -893,8 +926,8 @@ const drawScene = () => {
             const t = context.getTransform();
             const screenX = canvasPos.x * t.a + canvasPos.y * t.c + t.e;
             const screenY = canvasPos.x * t.b + canvasPos.y * t.d + t.f;
-            const dx = (canvas.width / 2 - screenX) * FOLLOW_LERP;
-            const dy = (canvas.height / 2 - screenY) * FOLLOW_LERP;
+            const dx = (state.viewWidth / 2 - screenX) * FOLLOW_LERP;
+            const dy = (state.viewHeight / 2 - screenY) * FOLLOW_LERP;
             if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
                 const pt0 = context.transformedPoint(0, 0);
                 const pt1 = context.transformedPoint(dx, dy);
@@ -909,17 +942,17 @@ const drawScene = () => {
     context.restore();
 
     const mapAspectRatio = MAP_CONFIG.totalWidth / MAP_CONFIG.totalHeight;
-    const canvasAspectRatio = canvas.width / canvas.height;
+    const canvasAspectRatio = state.viewWidth / state.viewHeight;
 
     const scaleFactor =
         mapAspectRatio > canvasAspectRatio
-            ? canvas.width / MAP_CONFIG.totalWidth
-            : canvas.height / MAP_CONFIG.totalHeight;
+            ? state.viewWidth / MAP_CONFIG.totalWidth
+            : state.viewHeight / MAP_CONFIG.totalHeight;
 
     const scaledMapWidth = MAP_CONFIG.totalWidth * scaleFactor;
     const scaledMapHeight = MAP_CONFIG.totalHeight * scaleFactor;
-    const offsetX = (canvas.width - scaledMapWidth) / 2;
-    const offsetY = (canvas.height - scaledMapHeight) / 2;
+    const offsetX = (state.viewWidth - scaledMapWidth) / 2;
+    const offsetY = (state.viewHeight - scaledMapHeight) / 2;
 
     const chunkWidth = MAP_CONFIG.totalWidth / MAP_CONFIG.columns;
     const chunkHeight = MAP_CONFIG.totalHeight / MAP_CONFIG.rows;
@@ -1185,8 +1218,7 @@ const loadMapImages = () => {
 };
 
 const initializeMap = () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvas(window.innerWidth, window.innerHeight);
 
     const canvasCenter = worldToCanvas(WORLD_CENTER.x, WORLD_CENTER.y);
     context.translate(
@@ -1464,8 +1496,7 @@ const start = () => {
     handleZoomButtons();
     window.addEventListener("resize", handleWindowResize);
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvas(window.innerWidth, window.innerHeight);
 
     drawScene();
     elements.serverSelect.innerHTML =
