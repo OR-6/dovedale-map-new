@@ -808,9 +808,9 @@ const updateServerList = (data = null) => {
             if (!td || typeof td !== "object" || Array.isArray(td)) return;
             player.trainData = {
                 destination: td.destination || "Unknown",
-                trainClass: td.trainClass || td.class || "Unknown",
+                trainClass: td.class || "Unknown",
                 headcode: td.headcode || "----",
-                trainType: td.trainType || td.headcodeClass || "",
+                trainType: td.headcodeClass || "",
                 trainSpeed: typeof td.trainSpeed === "number" ? td.trainSpeed : null,
             };
         });
