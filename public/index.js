@@ -125,6 +125,7 @@ const elements = {
     zoomInBtn: document.getElementById("zoom-in"),
     zoomOutBtn: document.getElementById("zoom-out"),
     qualitySelect: document.getElementById("quality"),
+    popOutBtn: document.getElementById("pop-out"),
 };
 
 const tooltipElements = {
@@ -1180,7 +1181,7 @@ const drawScene = () => {
 
 const getTileUrl = (row, column, quality) => {
     const tileName = `row-${row + 1}-column-${column + 1}`;
-    if (quality === "high") return `/images/${tileName}.png`;
+    if (quality === "high") return `/images/${tileName}.png?v=1`;
     return `/images/generated/${tileName}-${quality}.webp`;
 };
 
@@ -1507,6 +1508,10 @@ const start = () => {
     elements.serverSelect.innerHTML =
         '<option value="all">All Servers (0 players)</option>';
     createWebSocket();
+    if (window.location !== window.parent.location) {
+        // iframe ie wiki main page
+        elements.popOutBtn.classList.remove("hidden");
+    }
 };
 
 start();
