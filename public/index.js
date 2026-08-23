@@ -1180,7 +1180,7 @@ const drawScene = () => {
 
 const getTileUrl = (row, column, quality) => {
     const tileName = `row-${row + 1}-column-${column + 1}`;
-    if (quality === "high") return `/images/${tileName}.png`;
+    if (quality === "high") return `/images/${tileName}.png?v=1`;
     return `/images/generated/${tileName}-${quality}.webp`;
 };
 
