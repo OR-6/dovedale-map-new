@@ -745,7 +745,10 @@ const updateServerList = (data = null) => {
     );
 
     if (elements.serverSelect.options[0]) {
-        elements.serverSelect.options[0].textContent = `All Servers (${totalPlayersCount} players)`;
+        const allLabel = `All Servers (${totalPlayersCount} players)`;
+        if (elements.serverSelect.options[0].textContent !== allLabel) {
+            elements.serverSelect.options[0].textContent = allLabel;
+        }
     }
 
     const getServerLabel = (jobId) => {
@@ -766,7 +769,8 @@ const updateServerList = (data = null) => {
         if (!state.serverData[option.value]) {
             elements.serverSelect.remove(option.index);
         } else {
-            option.textContent = getServerLabel(option.value);
+            const label = getServerLabel(option.value);
+            if (option.textContent !== label) option.textContent = label;
         }
     });
 
@@ -786,8 +790,6 @@ const updateServerList = (data = null) => {
         elements.serverSelect.value = "all";
         elements.joinBtn.href = "roblox://experiences/start?placeId=12018816388";
         state.currentServer = "all";
-    } else {
-        elements.serverSelect.value = selectedValue;
     }
 };
 
