@@ -337,6 +337,11 @@ const trackTransforms = () => {
         applyNativeTransform();
     };
 
+    context.rotate = function (radians) {
+        transform = transform.rotate((radians * 180) / Math.PI);
+        applyNativeTransform();
+    };
+
     context.resetTransform = function () {
         transform = svg.createSVGMatrix();
         state.currentScale = 1;
@@ -1046,15 +1051,16 @@ const drawScene = () => {
             context.rotate(markerAngle);
             context.scale(trainScale, trainScale);
             context.translate(-trainMarkerDim.x / 2, -trainMarkerDim.y / 2);
+            const strokeWidth = 1 / state.currentScale;
             context.fillStyle = getPlayerColor(name);
             context.fill(TRAIN_PATH.body); // BODY
             context.fillStyle = "#00000020";
             context.fill(TRAIN_PATH.hood); // HOOD
             context.strokeStyle = "#000080";
-            context.lineWidth = 1;
+            context.lineWidth = strokeWidth;
             context.stroke(TRAIN_PATH.window); // WINDOW
             context.strokeStyle = isPinned || isHovered ? "white" : "black";
-            context.lineWidth = 1;
+            context.lineWidth = strokeWidth;
             context.stroke(TRAIN_PATH.outline); // OUTLINE
             context.translate(trainMarkerDim.x / 2, trainMarkerDim.y / 2);
             context.scale(1 / trainScale, 1 / trainScale);
