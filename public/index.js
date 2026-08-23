@@ -125,6 +125,7 @@ const elements = {
     zoomInBtn: document.getElementById("zoom-in"),
     zoomOutBtn: document.getElementById("zoom-out"),
     qualitySelect: document.getElementById("quality"),
+    popOutBtn: document.getElementById("pop-out"),
 };
 
 const tooltipElements = {
@@ -1507,6 +1508,10 @@ const start = () => {
     elements.serverSelect.innerHTML =
         '<option value="all">All Servers (0 players)</option>';
     createWebSocket();
+    if (window.location !== window.parent.location) {
+        // iframe ie wiki main page
+        elements.popOutBtn.classList.remove("hidden");
+    }
 };
 
 start();
