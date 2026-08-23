@@ -284,6 +284,13 @@ const trackTransforms = () => {
         return original.translate.call(context, distanceX, distanceY);
     };
 
+    const originalSetTransform = context.setTransform.bind(context);
+    context.resetTransform = function () {
+        transform = svg.createSVGMatrix();
+        state.currentScale = 1;
+        originalSetTransform(1, 0, 0, 1, 0, 0);
+    };
+
     const point = svg.createSVGPoint();
     context.transformedPoint = function (x, y) {
         point.x = x;
@@ -458,10 +465,29 @@ const handleWindowResize = () => {
     }
 
     resizeTimeout = setTimeout(() => {
-        const currentTransform = context.getTransform();
+        if (
+            canvas.width === window.innerWidth &&
+            canvas.height === window.innerHeight
+        ) {
+            return;
+        }
+
+        const viewCenter = context.transformedPoint(
+            canvas.width / 2,
+            canvas.height / 2,
+        );
+        const scale = state.currentScale;
+
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        context.setTransform(currentTransform);
+
+        context.resetTransform();
+        context.scale(scale, scale);
+        context.translate(
+            canvas.width / 2 / scale - viewCenter.x,
+            canvas.height / 2 / scale - viewCenter.y,
+        );
+
         drawScene();
     }, 16);
 
