@@ -748,13 +748,6 @@ const updateServerList = (data = null) => {
         elements.serverSelect.options[0].textContent = `All Servers (${totalPlayersCount} players)`;
     }
 
-    const existingOptionValues = Array.from(elements.serverSelect.options)
-        .slice(1)
-        .map((o) => o.value);
-    const serversChanged =
-        currentServers.length !== existingOptionValues.length ||
-        currentServers.some((id) => !existingOptionValues.includes(id));
-
     const getServerLabel = (jobId) => {
         const name =
             jobId.length > 6
@@ -766,43 +759,35 @@ const updateServerList = (data = null) => {
         return `${name} (${count} / 50 players)`;
     };
 
-    if (serversChanged) {
-        const selectedValue = elements.serverSelect.value;
-        while (elements.serverSelect.options.length > 1)
-            elements.serverSelect.remove(1);
-        currentServers.forEach((jobId) => {
+    const selectedValue = elements.serverSelect.value;
+
+    const existingOptions = Array.from(elements.serverSelect.options).slice(1);
+    existingOptions.forEach((option) => {
+        if (!state.serverData[option.value]) {
+            elements.serverSelect.remove(option.index);
+        } else {
+            option.textContent = getServerLabel(option.value);
+        }
+    });
+
+    const existingOptionValues = Array.from(elements.serverSelect.options)
+        .slice(1)
+        .map((o) => o.value);
+    currentServers
+        .filter((jobId) => !existingOptionValues.includes(jobId))
+        .forEach((jobId) => {
             const option = document.createElement("option");
             option.value = jobId;
             option.textContent = getServerLabel(jobId);
             elements.serverSelect.appendChild(option);
         });
-        if (
-            selectedValue !== "all" &&
-            !currentServers.includes(selectedValue)
-        ) {
-            elements.serverSelect.value = "all";
-            elements.joinBtn.href =
-                "roblox://experiences/start?placeId=12018816388";
-            state.currentServer = "all";
-        } else {
-            elements.serverSelect.value = selectedValue;
-        }
+
+    if (selectedValue !== "all" && !currentServers.includes(selectedValue)) {
+        elements.serverSelect.value = "all";
+        elements.joinBtn.href = "roblox://experiences/start?placeId=12018816388";
+        state.currentServer = "all";
     } else {
-        Array.from(elements.serverSelect.options)
-            .slice(1)
-            .forEach((option) => {
-                option.textContent = getServerLabel(option.value);
-            });
-        const selectedValue = elements.serverSelect.value;
-        if (
-            selectedValue !== "all" &&
-            !currentServers.includes(selectedValue)
-        ) {
-            elements.serverSelect.value = "all";
-            elements.joinBtn.href =
-                "roblox://experiences/start?placeId=12018816388";
-            state.currentServer = "all";
-        }
+        elements.serverSelect.value = selectedValue;
     }
 };
 
