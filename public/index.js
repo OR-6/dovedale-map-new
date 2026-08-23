@@ -864,7 +864,7 @@ const updateServerList = (data = null) => {
 };
 
 const TELEPORT_THRESHOLD = 1500;
-const BUFFER_DELAY = 1100;
+const BUFFER_DELAY = 2600;
 
 const getPlayerId = (player) => String(player.userId ?? player.username ?? "unknown");
 
