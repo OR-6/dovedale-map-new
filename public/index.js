@@ -418,10 +418,15 @@ const getPlayerAtPosition = (canvasX, canvasY) => {
                     (MAX_CARRIAGES - 2) * CARRIAGE_PITCH) *
                 0.5;
             if (distance <= hitRadius + consistLength) {
+                const trainScale =
+                    state.pinnedPlayer?.username === player.username ||
+                    state.hoveredPlayer?.username === player.username
+                        ? 0.5
+                        : 0.4;
                 const consist = getConsistPositions(
                     player,
                     baseCanvasPosition,
-                    0.4,
+                    trainScale,
                     state.previousPlayerPosition[getPlayerId(player)]?.angle ?? 0,
                 );
                 for (const car of consist) {
@@ -852,7 +857,9 @@ const updateServerList = (data = null) => {
                 trainType: td.headcodeClass || "",
                 trainSpeed: typeof td.trainSpeed === "number" ? td.trainSpeed : null,
                 carriageAmount:
-                    typeof td.carriageAmount === "number" ? td.carriageAmount : null,
+                    Number.isInteger(td.carriageAmount) && td.carriageAmount > 0
+                        ? td.carriageAmount
+                        : null,
             };
         });
     }
