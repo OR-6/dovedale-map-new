@@ -1294,6 +1294,9 @@ const drawScene = () => {
 
             state.previousPlayerPosition[uid] = { angle: markerAngle };
         } else {
+            if (state.trainTrail[uid]) {
+                delete state.trainTrail[uid];
+            }
             context.fillStyle = getPlayerColor(name);
             context.beginPath();
             context.arc(
